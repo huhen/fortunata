@@ -41,6 +41,7 @@
 - `Dockerfile`: бинарник `/out/generator` → `/out/fortunata`;
   `COPY` и `ENTRYPOINT` → `/fortunata`; `ENV DB_PATH=/data/fortunata.db`.
 - `.gitignore`: игнор локального бинарника `/generator` → `/fortunata`.
+- `.dockerignore`: запись локального бинарника `generator` → `fortunata`.
 - `compose.yaml`: сервис `generator` → `fortunata`; traefik-метки
   `traefik.http.routers.fortunata.*` и `traefik.http.services.fortunata.*`;
   `DB_PATH: /data/fortunata.db`. Volume `data` уже нейтральный — без изменений.
@@ -79,6 +80,9 @@
   вхождения: корень дерева проекта `generator/`, `/data/generator.db`.
 - `docs/superpowers/specs/2026-09-16-github-release-workflow-design.md` — 4
   вхождения: имена артефакта `dist/…-linux-amd64` и старое имя образа.
+- `docs/superpowers/plans/2026-09-16-github-release-workflow.md` — 8
+  вхождения: имена артефакта, образа и сервиса в листингах и ожиданиях
+  проверок.
 - Скриншоты: `01-generator.png` → `01-fortunata.png`,
   `03-generator-with-history.png` → `03-fortunata-with-history.png`;
   обновить две ссылки на них в плане. Интерфейс на скриншотах уже
