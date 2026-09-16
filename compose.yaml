@@ -1,5 +1,5 @@
 services:
-  generator:
+  fortunata:
     image: ghcr.io/huhen/fortunata:latest
     pull_policy: always
     restart: unless-stopped
@@ -12,7 +12,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?задайте ADMIN_PASSWORD в .env}
       SESSION_SECRET: ${SESSION_SECRET:?задайте SESSION_SECRET в .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      DB_PATH: /data/generator.db
+      DB_PATH: /data/fortunata.db
       ADDR: ":8080"
     volumes:
       - data:/data
@@ -20,10 +20,10 @@ services:
       - proxy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.generator.rule=Host(`${DOMAIN:?задайте DOMAIN в .env}`)
-      - traefik.http.routers.generator.entrypoints=websecure
-      - traefik.http.routers.generator.tls.certresolver=${TRAEFIK_CERTRESOLVER:?задайте TRAEFIK_CERTRESOLVER в .env}
-      - traefik.http.services.generator.loadbalancer.server.port=8080
+      - traefik.http.routers.fortunata.rule=Host(`${DOMAIN:?задайте DOMAIN в .env}`)
+      - traefik.http.routers.fortunata.entrypoints=websecure
+      - traefik.http.routers.fortunata.tls.certresolver=${TRAEFIK_CERTRESOLVER:?задайте TRAEFIK_CERTRESOLVER в .env}
+      - traefik.http.services.fortunata.loadbalancer.server.port=8080
       - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
 
 networks:

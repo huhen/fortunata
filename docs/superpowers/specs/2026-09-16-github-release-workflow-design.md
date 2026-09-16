@@ -59,12 +59,12 @@ Job `release`, шаги:
 2. `actions/setup-go` + `go test ./...` (повторный прогон — релиз только из
    зелёного кода).
 3. Сборка: `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath
-   -ldflags "-s -w" -o dist/generator-linux-amd64 ./cmd/server`.
+   -ldflags "-s -w" -o dist/fortunata-linux-amd64 ./cmd/server`.
 4. GitHub Release (`softprops/action-gh-release`):
    - `tag_name` = `VERSION`;
    - **заголовок релиза = версия** (`VERSION`);
    - **текст релиза = заголовок PR** заголовком-разделом, ниже — тело PR (если непустое);
-   - прикреплён `dist/generator-linux-amd64`.
+   - прикреплён `dist/fortunata-linux-amd64`.
 5. `docker/login-action`: registry `ghcr.io`, username `github.actor`,
    password `secrets.GITHUB_TOKEN`.
 6. `docker/build-push-action`: `push: true`, `platforms: linux/amd64`,
@@ -76,7 +76,7 @@ Job `release`, шаги:
 
 `compose.yaml` (прод, Traefik):
 - убрать `build: .`;
-- `image: generator:latest` → `image: ghcr.io/huhen/fortunata:latest`;
+- `image: fortunata:latest` → `image: ghcr.io/huhen/fortunata:latest`;
 - добавить `pull_policy: always` — `docker compose up -d` всегда тянет свежий
   `latest`.
 

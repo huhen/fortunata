@@ -1,17 +1,17 @@
 services:
-  generator:
+  fortunata:
     build: .
-    image: generator:local
+    image: fortunata:local
     ports:
       - "8080:8080"
     environment:
       ADMIN_PASSWORD: test123
       SESSION_SECRET: local-test-secret
       COOKIE_SECURE: "false"
-      DB_PATH: /data/generator.db
+      DB_PATH: /data/fortunata.db
       ADDR: ":8080"
     volumes:
-      - generator-local-data:/data
+      - fortunata-local-data:/data
 
 volumes:
-  generator-local-data:
+  fortunata-local-data:

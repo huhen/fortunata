@@ -98,6 +98,7 @@ git commit -m "refactor: go-модуль и дефолт БД — generator → 
 **Files:**
 - Modify: `Dockerfile` (бинарник:10, COPY:17, ENV:19, ENTRYPOINT:22)
 - Modify: `.gitignore:9` (`/generator` — игнор локального бинарника)
+- Modify: `.dockerignore:14` (`generator` — запись локального бинарника)
 - Modify: `package.json:2`
 
 - [ ] **Step 1: Заменить в Dockerfile**
@@ -109,12 +110,13 @@ grep -n 'fortunata\|generator' Dockerfile
 
 Expected: `/out/fortunata`, `/fortunata` (COPY и ENTRYPOINT), `DB_PATH=/data/fortunata.db`; строк с `generator` нет.
 
-- [ ] **Step 2: Заменить в .gitignore и package.json**
+- [ ] **Step 2: Заменить в .gitignore, .dockerignore и package.json**
 
 ```bash
 sed -i 's|^/generator$|/fortunata|' .gitignore
+sed -i 's|^generator$|fortunata|' .dockerignore
 sed -i 's|"name": "generator-web"|"name": "fortunata-web"|' package.json
-grep -rn -i 'generator' .gitignore package.json Dockerfile
+grep -rn -i 'generator' .gitignore .dockerignore package.json Dockerfile
 ```
 
 Expected: grep пуст.
@@ -122,8 +124,8 @@ Expected: grep пуст.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add .gitignore Dockerfile package.json
-git commit -m "build: Dockerfile, .gitignore, package.json — generator → fortunata"
+git add .gitignore .dockerignore Dockerfile package.json
+git commit -m "build: Dockerfile, .gitignore, .dockerignore, package.json — generator → fortunata"
 ```
 
 ### Task 4: Compose-файлы и сборка образа
@@ -195,15 +197,17 @@ git commit -m "ci+docs: релизный артефакт и документа�
 - Modify: `docs/superpowers/plans/2026-09-15-lottery-predictor.md` (~50 вхождений; сюда же входят 2 ссылки на скриншоты)
 - Modify: `docs/superpowers/specs/2026-09-15-lottery-predictor-design.md:29,58`
 - Modify: `docs/superpowers/specs/2026-09-16-github-release-workflow-design.md:62,67,79`
+- Modify: `docs/superpowers/plans/2026-09-16-github-release-workflow.md` (8 вхождений)
 - Rename: `docs/screenshots/01-generator.png` → `01-fortunata.png`; `docs/screenshots/03-generator-with-history.png` → `03-fortunata-with-history.png`
 
-**ЗАПРЕЩЕНО:** выполнять sed по всей `docs/` или `find … -exec sed` — только три файла из списка. Спека `2026-09-16-fortunata-rename-design.md` и этот план в замену не входят.
+**ЗАПРЕЩЕНО:** выполнять sed по всей `docs/` или `find … -exec sed` — только четыре файла из списка. Спека `2026-09-16-fortunata-rename-design.md` и этот план в замену не входят.
 
-- [ ] **Step 1: Заменить в трёх файлах по списку**
+- [ ] **Step 1: Заменить в четырёх файлах по списку**
 
 ```bash
 sed -i 's|generator|fortunata|g' \
   docs/superpowers/plans/2026-09-15-lottery-predictor.md \
+  docs/superpowers/plans/2026-09-16-github-release-workflow.md \
   docs/superpowers/specs/2026-09-15-lottery-predictor-design.md \
   docs/superpowers/specs/2026-09-16-github-release-workflow-design.md
 ```

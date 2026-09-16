@@ -11,16 +11,16 @@
 **Спека:** `docs/superpowers/specs/2026-09-15-lottery-predictor-design.md`
 
 **Конвенции:**
-- Модуль Go: `generator`.
+- Модуль Go: `fortunata`.
 - Сообщения об ошибках для пользователя — на русском.
-- Рабочая директория всех команд: корень репозитория `/home/usr1/coding/work/generator`.
+- Рабочая директория всех команд: корень репозитория `/home/usr1/coding/work/fortunata`.
 
 ---
 
 ## Карта файлов
 
 ```
-generator/
+fortunata/
 ├── cmd/server/main.go            # конфиг из env, сборка mux, graceful shutdown
 ├── internal/store/store.go       # SQLite: схема, Draw, CRUD
 ├── internal/store/store_test.go
@@ -55,13 +55,13 @@ generator/
 - [ ] **Step 1: go.mod и дополнение .gitignore**
 
 ```bash
-go mod init generator
+go mod init fortunata
 ```
 
 Добавить в конец `.gitignore` строку (бинарник локальной сборки):
 
 ```
-/generator
+/fortunata
 ```
 
 - [ ] **Step 2: зависимости**
@@ -126,7 +126,7 @@ func TestLoadConfigRandomSecret(t *testing.T) {
 	if len(cfg.Secret) != 64 || !cfg.SecretRandom {
 		t.Fatalf("ожидали случайный 64-символьный hex-секрет, got %q", cfg.Secret)
 	}
-	if cfg.Addr != ":8080" || cfg.DBPath != "generator.db" || cfg.CookieSecure {
+	if cfg.Addr != ":8080" || cfg.DBPath != "fortunata.db" || cfg.CookieSecure {
 		t.Fatalf("дефолты сломались: %+v", cfg)
 	}
 }
@@ -162,7 +162,7 @@ type Config struct {
 	Secret       string // SESSION_SECRET; если пуст — случайный
 	SecretRandom bool   // true, если SECRET сгенерирован при старте
 	CookieSecure bool   // COOKIE_SECURE, по умолчанию false (за Traefik ставят true)
-	DBPath       string // DB_PATH, по умолчанию "generator.db"
+	DBPath       string // DB_PATH, по умолчанию "fortunata.db"
 }
 
 func loadConfig(getenv func(string) string) (Config, error) {
@@ -174,7 +174,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		cfg.Addr = ":8080"
 	}
 	if cfg.DBPath == "" {
-		cfg.DBPath = "generator.db"
+		cfg.DBPath = "fortunata.db"
 	}
 	cfg.Password = getenv("ADMIN_PASSWORD")
 	if cfg.Password == "" {
@@ -216,7 +216,7 @@ func main() {
 - [ ] **Step 6: тесты зелёные, всё компилируется**
 
 Run: `go test ./... && go vet ./...`
-Expected: `ok  generator/cmd/server`, vet без замечаний
+Expected: `ok  fortunata/cmd/server`, vet без замечаний
 
 - [ ] **Step 7: Commit**
 
@@ -1095,7 +1095,7 @@ import (
 	"net/url"
 	"testing"
 
-	"generator/internal/store"
+	"fortunata/internal/store"
 )
 
 // newTestServer поднимает api на httptest с паролем "pass123".
@@ -1270,8 +1270,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"generator/internal/auth"
-	"generator/internal/store"
+	"fortunata/internal/auth"
+	"fortunata/internal/store"
 )
 
 // maxBodyBytes — лимит тела запроса: на порядки больше реальных запросов.
@@ -1352,7 +1352,7 @@ import (
 	"net/http"
 	"time"
 
-	"generator/internal/auth"
+	"fortunata/internal/auth"
 )
 
 // wrongPasswordPause — пауза перед ответом 401, замедляет перебор пароля.
@@ -1630,7 +1630,7 @@ import (
 	"sort"
 	"strconv"
 
-	"generator/internal/store"
+	"fortunata/internal/store"
 )
 
 type drawPayload struct {
@@ -1879,7 +1879,7 @@ package api
 import (
 	"net/http"
 
-	"generator/internal/generate"
+	"fortunata/internal/generate"
 )
 
 // maxTicketCount — верхняя граница пачки.
@@ -1935,8 +1935,8 @@ import (
 	"syscall"
 	"time"
 
-	"generator/internal/api"
-	"generator/internal/store"
+	"fortunata/internal/api"
+	"fortunata/internal/store"
 )
 
 func main() {
@@ -2020,7 +2020,7 @@ git commit -m "feat: эндпоинт генерации и запуск HTTP-с
 
 ```json
 {
-  "name": "generator-web",
+  "name": "fortunata-web",
   "private": true,
   "type": "module"
 }
@@ -2724,7 +2724,7 @@ var Files embed.FS
 
 - [ ] **Step 2: раздача в main.go**
 
-В `cmd/server/main.go` добавить импорт `"generator/web"` (пакет лежит в корневом каталоге `web/`, не в internal/) и после строки `mux := api.New(...)`:
+В `cmd/server/main.go` добавить импорт `"fortunata/web"` (пакет лежит в корневом каталоге `web/`, не в internal/) и после строки `mux := api.New(...)`:
 
 ```go
 	// Статика: / — index.html, /admin — админка, остальное — файлы из web/.
@@ -2788,7 +2788,7 @@ compose.local.yaml
 .env.example
 Dockerfile
 README.md
-generator
+fortunata
 ```
 
 - [ ] **Step 2: Dockerfile**
@@ -2800,34 +2800,34 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/generator ./cmd/server \
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/fortunata ./cmd/server \
  && mkdir -p /out/data && chown 65532:65532 /out/data
 
 # Минимальный рантайм: только бинарник и пустой /data с владельцем 65532
 # (иначе named volume при первой инициализации получит root:root и БД не создастся).
 FROM scratch
-COPY --from=build /out/generator /generator
+COPY --from=build /out/fortunata /fortunata
 COPY --from=build --chown=65532:65532 /out/data /data
-ENV DB_PATH=/data/generator.db ADDR=:8080
+ENV DB_PATH=/data/fortunata.db ADDR=:8080
 VOLUME /data
 EXPOSE 8080
 USER 65532:65532
-ENTRYPOINT ["/generator"]
+ENTRYPOINT ["/fortunata"]
 ```
 
 - [ ] **Step 3: compose.yaml (прод, за внешним Traefik)**
 
 ```yaml
 services:
-  generator:
+  fortunata:
     build: .
-    image: generator:latest
+    image: fortunata:latest
     restart: unless-stopped
     environment:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?задайте ADMIN_PASSWORD в .env}
       SESSION_SECRET: ${SESSION_SECRET:?задайте SESSION_SECRET в .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
-      DB_PATH: /data/generator.db
+      DB_PATH: /data/fortunata.db
       ADDR: ":8080"
     volumes:
       - data:/data
@@ -2835,10 +2835,10 @@ services:
       - proxy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.generator.rule=Host(`${DOMAIN:?задайте DOMAIN в .env}`)
-      - traefik.http.routers.generator.entrypoints=websecure
-      - traefik.http.routers.generator.tls.certresolver=${TRAEFIK_CERTRESOLVER:?задайте TRAEFIK_CERTRESOLVER в .env}
-      - traefik.http.services.generator.loadbalancer.server.port=8080
+      - traefik.http.routers.fortunata.rule=Host(`${DOMAIN:?задайте DOMAIN в .env}`)
+      - traefik.http.routers.fortunata.entrypoints=websecure
+      - traefik.http.routers.fortunata.tls.certresolver=${TRAEFIK_CERTRESOLVER:?задайте TRAEFIK_CERTRESOLVER в .env}
+      - traefik.http.services.fortunata.loadbalancer.server.port=8080
       - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
 
 networks:
@@ -2854,22 +2854,22 @@ volumes:
 
 ```yaml
 services:
-  generator:
+  fortunata:
     build: .
-    image: generator:local
+    image: fortunata:local
     ports:
       - "8080:8080"
     environment:
       ADMIN_PASSWORD: test123
       SESSION_SECRET: local-test-secret
       COOKIE_SECURE: "false"
-      DB_PATH: /data/generator.db
+      DB_PATH: /data/fortunata.db
       ADDR: ":8080"
     volumes:
-      - generator-local-data:/data
+      - fortunata-local-data:/data
 
 volumes:
-  generator-local-data:
+  fortunata-local-data:
 ```
 
 - [ ] **Step 5: .env.example**
@@ -2897,9 +2897,9 @@ COOKIE_SECURE=true
 - [ ] **Step 6: сборка и smoke через docker**
 
 ```bash
-docker build -t generator:local .
+docker build -t fortunata:local .
 docker run -d --rm --name gen-smoke -p 8081:8080 \
-  -e ADMIN_PASSWORD=test -e SESSION_SECRET=s -e COOKIE_SECURE=false generator:local
+  -e ADMIN_PASSWORD=test -e SESSION_SECRET=s -e COOKIE_SECURE=false fortunata:local
 sleep 1
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8081/   # 200
 curl -s http://localhost:8081/api/draws                          # {"draws":[]}
@@ -2983,7 +2983,7 @@ node --test web/parse.test.mjs   # парсер комбинации
    docker compose up -d --build
    ```
 
-Traefik должен иметь доступ к этой сети; роутер `generator` слушает домен
+Traefik должен иметь доступ к этой сети; роутер `fortunata` слушает домен
 из `DOMAIN` на entrypoint `websecure` с certresolver из `TRAEFIK_CERTRESOLVER`.
 
 ## Переменные окружения
@@ -2991,7 +2991,7 @@ Traefik должен иметь доступ к этой сети; роутер 
 | Переменная | Назначение | По умолчанию |
 |---|---|---|
 | `ADDR` | Адрес слушателя | `:8080` |
-| `DB_PATH` | Путь к файлу SQLite | `generator.db` |
+| `DB_PATH` | Путь к файлу SQLite | `fortunata.db` |
 | `ADMIN_PASSWORD` | Пароль редактирования (обязателен) | — |
 | `SESSION_SECRET` | Секрет подписи сессий; пусто — случайный | случайный |
 | `COOKIE_SECURE` | Флаг Secure у cookie (true за HTTPS) | `false` |
@@ -3042,7 +3042,7 @@ Playwright: `browser_resize` → width 390, height 844; `browser_navigate` → `
 
 1. Нажать «Сгенерировать» (количество 10 по умолчанию).
 2. Проверить: 10 билетов, в каждом 7 шаров по возрастанию + жёлтый бонус.
-3. Скриншот `docs/screenshots/01-generator.png`.
+3. Скриншот `docs/screenshots/01-fortunata.png`.
 
 - [ ] **Step 4: сценарий архива (пустой)**
 
@@ -3065,7 +3065,7 @@ Playwright: `browser_resize` → width 390, height 844; `browser_navigate` → `
 
 1. Вернуться на `/`, вкладка «Архив» → розыгрыш № 777 виден.
 2. «Генератор» → «Сгенерировать» → билеты сгенерированы без ошибок.
-3. Скриншот `docs/screenshots/03-generator-with-history.png`.
+3. Скриншот `docs/screenshots/03-fortunata-with-history.png`.
 
 - [ ] **Step 7: финальный прогон всех тестов**
 

@@ -3,7 +3,7 @@ package api
 import (
 	"net/http"
 
-	"generator/internal/generate"
+	"fortunata/internal/generate"
 )
 
 // maxTicketCount — верхняя граница пачки.

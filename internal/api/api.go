@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"generator/internal/auth"
-	"generator/internal/store"
+	"fortunata/internal/auth"
+	"fortunata/internal/store"
 )
 
 // maxBodyBytes — лимит тела запроса: на порядки больше реальных запросов.

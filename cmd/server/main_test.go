@@ -49,7 +49,7 @@ func TestLoadConfigRandomSecret(t *testing.T) {
 	if len(cfg.Secret) != 64 || !cfg.SecretRandom {
 		t.Fatalf("ожидали случайный 64-символьный hex-секрет, got %q", cfg.Secret)
 	}
-	if cfg.Addr != ":8080" || cfg.DBPath != "generator.db" || cfg.CookieSecure {
+	if cfg.Addr != ":8080" || cfg.DBPath != "fortunata.db" || cfg.CookieSecure {
 		t.Fatalf("дефолты сломались: %+v", cfg)
 	}
 }
