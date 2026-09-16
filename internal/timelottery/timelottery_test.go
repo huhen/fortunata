@@ -39,3 +39,46 @@ func TestParseHappyPath(t *testing.T) {
 		}
 	}
 }
+
+func TestParseIssues(t *testing.T) {
+	draws, issues, err := Parse(strings.NewReader(readFixture(t, "broken.html")))
+	if err != nil {
+		// Все строки похожи на данные — это не структурный отказ.
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if len(draws) != 0 {
+		t.Fatalf("draws = %+v, хотели пусто", draws)
+	}
+	if len(issues) != 4 {
+		t.Fatalf("issues = %+v, хотели 4", issues)
+	}
+	for _, tc := range []struct {
+		no    int64
+		fragm string
+	}{
+		{62, "36 вне диапазона"},
+		{61, "повторяется"},
+		{60, "бонусное число 55 вне диапазона"},
+		{59, "0 вне диапазона"},
+	} {
+		found := false
+		for _, is := range issues {
+			if is.DrawNo == tc.no && strings.Contains(is.Reason, tc.fragm) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("нет issue для №%d с «%s»: %+v", tc.no, tc.fragm, issues)
+		}
+	}
+}
+
+func TestParseStructuralError(t *testing.T) {
+	draws, issues, err := Parse(strings.NewReader("<html><body><p>Пусто</p></body></html>"))
+	if err == nil {
+		t.Fatalf("хотели структурную ошибку, получили draws=%+v issues=%+v", draws, issues)
+	}
+	if !strings.Contains(err.Error(), "не найдены результаты") {
+		t.Fatalf("неожиданный текст ошибки: %v", err)
+	}
+}

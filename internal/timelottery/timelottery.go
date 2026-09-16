@@ -9,6 +9,7 @@
 package timelottery
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -38,36 +39,64 @@ func Parse(r io.Reader) ([]Draw, []Issue, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("разбор html: %w", err)
 	}
-	var draws []Draw
+	var (
+		draws  []Draw
+		issues []Issue
+	)
 	for _, cells := range tableRows(doc) {
-		d, ok := dataRow(cells)
-		if !ok {
-			continue // шапка, сноска или строка другой таблицы
-		}
-		draws = append(draws, d)
-	}
-	return draws, nil, nil
-}
-
-// dataRow распознаёт строку данных и разбирает её.
-func dataRow(cells []string) (Draw, bool) {
-	if len(cells) < 2 {
-		return Draw{}, false
-	}
-	no, err := strconv.ParseInt(strings.TrimSpace(cells[0]), 10, 64)
-	if err != nil || no < 1 {
-		return Draw{}, false
-	}
-	for _, cellText := range cells[1:] {
-		nums := extractNumbers(cellText)
-		if len(nums) != 8 {
+		if len(cells) < 2 {
 			continue
 		}
-		main := nums[:7] // сортировка на месте, nums[7] (бонус) не трогает
+		no, err := strconv.ParseInt(strings.TrimSpace(cells[0]), 10, 64)
+		if err != nil || no < 1 {
+			continue // шапка, сноска или строка другой таблицы
+		}
+		nums, ok := numbersCell(cells[1:])
+		if !ok {
+			continue // не похоже на строку данных
+		}
+		main := nums[:7]
+		if msg := validate(main, nums[7]); msg != "" {
+			issues = append(issues, Issue{DrawNo: no, Reason: msg})
+			continue
+		}
 		sort.Ints(main)
-		return Draw{No: no, Numbers: main, Bonus: nums[7]}, true
+		draws = append(draws, Draw{No: no, Numbers: main, Bonus: nums[7]})
 	}
-	return Draw{}, false
+	if len(draws) == 0 && len(issues) == 0 {
+		return nil, nil, errors.New("на странице не найдены результаты розыгрышей")
+	}
+	return draws, issues, nil
+}
+
+// numbersCell ищет первую ячейку с ровно восемью числами (семёрка + бонус).
+func numbersCell(cells []string) ([]int, bool) {
+	for _, text := range cells {
+		nums := extractNumbers(text)
+		if len(nums) == 8 {
+			return nums, true
+		}
+	}
+	return nil, false
+}
+
+// validate — первые 7 чисел в 1–35 без повторов, бонус в 1–54;
+// "" если комбинация валидна, иначе причина для Issue.
+func validate(main []int, bonus int) string {
+	seen := make(map[int]struct{}, 7)
+	for _, n := range main {
+		if n < 1 || n > 35 {
+			return fmt.Sprintf("число %d вне диапазона 1–35", n)
+		}
+		if _, dup := seen[n]; dup {
+			return fmt.Sprintf("число %d повторяется", n)
+		}
+		seen[n] = struct{}{}
+	}
+	if bonus < 1 || bonus > 54 {
+		return fmt.Sprintf("бонусное число %d вне диапазона 1–54", bonus)
+	}
+	return ""
 }
 
 // tableRows возвращает тексты ячеек каждой <tr> в порядке следования.
