@@ -40,6 +40,7 @@
 
 - `Dockerfile`: бинарник `/out/generator` → `/out/fortunata`;
   `COPY` и `ENTRYPOINT` → `/fortunata`; `ENV DB_PATH=/data/fortunata.db`.
+- `.gitignore`: игнор локального бинарника `/generator` → `/fortunata`.
 - `compose.yaml`: сервис `generator` → `fortunata`; traefik-метки
   `traefik.http.routers.fortunata.*` и `traefik.http.services.fortunata.*`;
   `DB_PATH: /data/fortunata.db`. Volume `data` уже нейтральный — без изменений.
@@ -83,9 +84,10 @@
   обновить две ссылки на них в плане. Интерфейс на скриншотах уже
   брендирован «Fortunata» — переснимать не нужно.
 
-Единственное исключение — сама эта спека: упоминания «generator» в ней —
-её предмет (описание соответствия старое → новое), поэтому остаются.
-После выполнения ей меняется статус на «выполнен».
+Исключения — мета-документы самой работы: эта спека и план реализации
+переименования. Упоминания «generator» в них — их предмет (описание
+соответствия старое → новое), поэтому остаются. После выполнения спеке
+меняется статус на «выполнен».
 
 ## Краевые случаи
 
@@ -104,9 +106,9 @@
 2. `node --test web/parse.test.mjs`
 3. `docker compose -f compose.local.yaml build` — образ собирается с новым
    именем бинарника.
-4. `grep -ri generator` по репозиторию — вхождения остаются только в этой
-   спеке (`2026-09-16-fortunata-rename-design.md`); подстрока «generator»
-   в имени пакета `internal/generate` не встречается.
+4. `grep -ri generator` по репозиторию — вхождения остаются только в спеке и
+   плане переименования (мета-документы); подстрока «generator» в имени
+   пакета `internal/generate` не встречается.
 5. Дымовой прогон: `ADMIN_PASSWORD=test go run ./cmd/server`, создался
    `fortunata.db`.
 
