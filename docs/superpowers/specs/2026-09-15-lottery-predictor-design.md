@@ -26,7 +26,7 @@
 - **Подход:** статика + JSON API (SPA-lite). Серверный рендеринг и SPA-фреймворки отклонены.
 
 ```
-generator/
+fortunata/
 ├── cmd/server/main.go      # конфиг из env, http.ServeMux, graceful shutdown
 ├── internal/
 │   ├── store/              # SQLite: CRUD розыгрышей
@@ -55,7 +55,7 @@ generator/
 | `created_at`, `updated_at` | TEXT | UTC, служебные |
 
 - Порядок чисел значения не имеет: при записи семёрка сортируется по возрастанию.
-- Файл БД: `/data/generator.db`, режим WAL, docker volume `data`.
+- Файл БД: `/data/fortunata.db`, режим WAL, docker volume `data`.
 - Пустая база — валидное состояние: генератор работает равномерно.
 
 ## 5. Алгоритм генерации

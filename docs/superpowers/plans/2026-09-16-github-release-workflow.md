@@ -151,7 +151,7 @@ jobs:
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
             go build -trimpath -ldflags "-s -w" \
-            -o dist/generator-linux-amd64 ./cmd/server
+            -o dist/fortunata-linux-amd64 ./cmd/server
 
       - name: Описание релиза (заголовок и тело PR)
         env:
@@ -169,7 +169,7 @@ jobs:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
           body_path: dist/release-notes.md
-          files: dist/generator-linux-amd64
+          files: dist/fortunata-linux-amd64
           fail_on_unmatched_files: true
 
       - uses: docker/login-action@v4
@@ -222,9 +222,9 @@ git commit -m "ci: воркфлоу релиза по слитому PR (бин�
 
 ```yaml
 services:
-  generator:
+  fortunata:
     build: .
-    image: generator:latest
+    image: fortunata:latest
     restart: unless-stopped
 ```
 
@@ -232,7 +232,7 @@ services:
 
 ```yaml
 services:
-  generator:
+  fortunata:
     image: ghcr.io/huhen/fortunata:latest
     pull_policy: always
     restart: unless-stopped
@@ -260,7 +260,7 @@ Expected вывод — ровно две строки, строки с `build:`
 docker compose -f compose.local.yaml config | grep -E 'image:|build:'
 ```
 
-Expected: `image: generator:local` и `build:` присутствуют.
+Expected: `image: fortunata:local` и `build:` присутствуют.
 
 - [ ] **Step 4: Commit**
 
@@ -338,7 +338,7 @@ Expected: `completed`, `success`. Версия тега совпадает с ш
 gh release view --json tagName,name,body,assets
 ```
 
-Expected: `name` = заголовок PR; `body` = тело PR; в `assets` — `generator-linux-amd64`.
+Expected: `name` = заголовок PR; `body` = тело PR; в `assets` — `fortunata-linux-amd64`.
 
 - [ ] **Step 4: Проверить образ в GHCR**
 
@@ -356,7 +356,7 @@ DOMAIN=example.com TRAEFIK_CERTRESOLVER=letsencrypt ADMIN_PASSWORD=test SESSION_
   docker compose -f compose.yaml pull
 ```
 
-Expected: `Pulling generator... Image ghcr.io/huhen/fortunata:latest Pulled` (переменные здесь фиктивные, сервис не запускается — только проверяется, что путь до образа рабочий).
+Expected: `Pulling fortunata... Image ghcr.io/huhen/fortunata:latest Pulled` (переменные здесь фиктивные, сервис не запускается — только проверяется, что путь до образа рабочий).
 
 - [ ] **Step 6: Финальная ревизия**
 
@@ -373,4 +373,4 @@ Expected: ветка `main` содержит оба воркфлоу и новы
 
 - **Покрытие спеки:** ci.yml (test+docker jobs) — Task 1; release.yml (версия, тесты, бинарник, Release из PR, GHCR, concurrency, права) — Task 2; compose.yaml — Task 3; actionlint — Tasks 1–2; сквозная проверка — Tasks 4–5. Краевые случаи из спеки покрыты конструкцией триггеров (`types: [closed]` + `merged == true`, хеш в версии, body_path с фолбэком).
 - **Плейсхолдеров нет:** все шаги содержат полный код/команды и ожидаемый результат.
-- **Консистентность:** `ghcr.io/huhen/fortunata`, `dist/generator-linux-amd64`, `VERSION`/`IMAGE` — одинаковы во всех задачах.
+- **Консистентность:** `ghcr.io/huhen/fortunata`, `dist/fortunata-linux-amd64`, `VERSION`/`IMAGE` — одинаковы во всех задачах.
