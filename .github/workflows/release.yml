@@ -15,12 +15,14 @@ concurrency:
 
 jobs:
   release:
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
     env:
       IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Версия (CalVer + хеш)
         run: echo "VERSION=v$(date -u +%Y.%m.%d)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
@@ -45,15 +47,16 @@ jobs:
         run: |
           BODY="$PR_BODY"
           if [ -z "$BODY" ]; then BODY="$PR_TITLE"; fi
-          echo "$BODY" > release-notes.md
+          printf '%s\n' "$BODY" > dist/release-notes.md
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.VERSION }}
           name: ${{ github.event.pull_request.title }}
-          body_path: release-notes.md
+          body_path: dist/release-notes.md
           files: dist/generator-linux-amd64
+          fail_on_unmatched_files: true
 
       - uses: docker/login-action@v4
         with:
