@@ -577,7 +577,7 @@ func TestSyncAddsNewDrawsAndIdempotent(t *testing.T) {
 	if d64 == nil {
 		t.Fatalf("розыгрыша 64 нет в базе: %+v", list.Draws)
 	}
-	want := []int{10, 19, 21, 24, 28, 29}
+	want := []int{5, 10, 19, 21, 24, 28, 29}
 	if d64.Bonus != 18 || len(d64.Numbers) != 7 {
 		t.Fatalf("d64 = %+v", d64)
 	}
