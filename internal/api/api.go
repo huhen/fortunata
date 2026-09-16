@@ -12,15 +12,23 @@ import (
 // maxBodyBytes — лимит тела запроса: на порядки больше реальных запросов.
 const maxBodyBytes = 64 << 10
 
+// defaultArchiveURL — страница архива результатов на timelottery.ru.
+const defaultArchiveURL = "https://timelottery.ru/arhiv/rezultaty-vseh-rozygryshej-fortunata/"
+
 type Handler struct {
 	st           *store.Store
 	auth         *auth.Manager
 	cookieSecure bool
+	archiveURL   string // источник синхронизации; переопределяется в тестах
 }
 
 // New собирает все /api-маршруты; main может добавить на этот же mux статику.
-func New(st *store.Store, password, secret string, cookieSecure bool) *http.ServeMux {
-	h := &Handler{st: st, auth: auth.New(password, secret), cookieSecure: cookieSecure}
+// Пустой archiveURL заменяется на defaultArchiveURL.
+func New(st *store.Store, password, secret string, cookieSecure bool, archiveURL string) *http.ServeMux {
+	if archiveURL == "" {
+		archiveURL = defaultArchiveURL
+	}
+	h := &Handler{st: st, auth: auth.New(password, secret), cookieSecure: cookieSecure, archiveURL: archiveURL}
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/login", requireJSON(h.login))
 	mux.Handle("POST /api/logout", requireJSON(h.logout))
@@ -29,6 +37,7 @@ func New(st *store.Store, password, secret string, cookieSecure bool) *http.Serv
 	mux.Handle("POST /api/draws", h.session(requireJSON(h.createDraw)))
 	mux.Handle("PUT /api/draws/{no}", h.session(requireJSON(h.updateDraw)))
 	mux.Handle("DELETE /api/draws/{no}", h.session(h.deleteDraw))
+	mux.Handle("POST /api/sync", h.session(requireJSON(h.syncDraws)))
 	mux.Handle("POST /api/generate", requireJSON(h.generate))
 	return mux
 }

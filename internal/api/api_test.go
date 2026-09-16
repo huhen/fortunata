@@ -22,7 +22,7 @@ func newTestServer(t *testing.T) *httptest.Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
-	ts := httptest.NewServer(New(st, "pass123", "test-secret", false))
+	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, ""))
 	t.Cleanup(ts.Close)
 	return ts
 }
@@ -451,7 +451,7 @@ func TestGenerateUsesHistory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	ts := httptest.NewServer(New(st, "pass123", "test-secret", false))
+	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, ""))
 	t.Cleanup(ts.Close)
 	resp := post(t, clientWithJar(), ts.URL+"/api/generate", map[string]any{"count": 10})
 	defer resp.Body.Close()
