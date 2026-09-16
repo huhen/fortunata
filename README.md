@@ -50,10 +50,11 @@ node --test web/parse.test.mjs   # парсер комбинации (Node ≥ 1
    docker network create traefik   # если ещё нет
    ```
 
-3. Запуск:
+3. Запуск (образ тянется из GHCR; обновление до свежего релиза —
+   повторный запуск этой команды, `pull_policy: always`):
 
    ```bash
-   docker compose up -d --build
+   docker compose up -d
    ```
 
 Traefik должен иметь доступ к этой сети; роутер `generator` слушает домен

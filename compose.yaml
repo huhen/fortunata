@@ -1,7 +1,7 @@
 services:
   generator:
-    build: .
-    image: generator:latest
+    image: ghcr.io/huhen/fortunata:latest
+    pull_policy: always
     restart: unless-stopped
     logging:
       driver: json-file
