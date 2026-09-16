@@ -18,8 +18,8 @@
 | Параметр | Значение |
 |---|---|
 | Триггер релиза | слитый PR в `main` (`types: [closed]` + `github.event.pull_request.merged == true`) |
-| Версия | CalVer: `v$(date -u +%Y.%m.%d)-$(git rev-parse --short HEAD)`, напр. `v2026.09.16-8d5d1d5` |
-| Docker-реестр | GHCR, образ `ghcr.io/huhen/fortunata`; видимость образа наследуется от репозитория |
+| Версия | CalVer: `v$(git show -s --format='%cd' --date=format:'%Y.%m.%d' HEAD)-$(git rev-parse --short HEAD)` (дата из коммита), напр. `v2026.09.16-8d5d1d5` |
+| Docker-реестр | GHCR, образ `ghcr.io/huhen/fortunata`; видимость: первый пакет может создаться приватным — проверить и переключить в Public (GitHub → Packages → fortunata → Package settings), иначе `docker compose pull` без логина не сработает |
 | Бинарник | только linux/amd64, статический (`CGO_ENABLED=0`, `-trimpath -ldflags "-s -w"`) |
 | Структура | два воркфлоу: `ci.yml` (проверка) и `release.yml` (публикация) |
 
@@ -41,8 +41,9 @@ Job `test`:
 Job `docker`:
 1. `actions/checkout`
 2. `docker/setup-buildx-action`
-3. `docker/build-push-action`: `push: false`, `platforms: linux/amd64`, кэш `type=gha`
-   — контроль, что образ собирается, без публикации.
+3. `docker/build-push-action`: `push: false`, `platforms: linux/amd64`, кэш
+   `type=gha` (`cache-to: type=gha,mode=max,ignore-error=true`) — контроль, что
+   образ собирается, без публикации.
 
 ## `release.yml` — публикация
 
@@ -50,10 +51,11 @@ Job `docker`:
 условием `github.event.pull_request.merged == true`.
 Права: `contents: write` (тег + релиз), `packages: write` (GHCR).
 Concurrence: группа `release-main`, `cancel-in-progress: false` — чтобы два
-быстрых мержа не соревновались за тег `latest`.
+быстрых мержа не соревновались за тег `latest`; `queue: max` — ожидающие
+запуски встают в очередь и не отменяются.
 
 Job `release`, шаги:
-1. Версия: `VERSION="v$(date -u +%Y.%m.%d)-$(git rev-parse --short HEAD)"`.
+1. Версия: `VERSION="v$(git show -s --format='%cd' --date=format:'%Y.%m.%d' HEAD)-$(git rev-parse --short HEAD)"` — дата берётся из коммита, версия детерминирована.
 2. `actions/setup-go` + `go test ./...` (повторный прогон — релиз только из
    зелёного кода).
 3. Сборка: `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath
@@ -68,7 +70,7 @@ Job `release`, шаги:
 6. `docker/build-push-action`: `push: true`, `platforms: linux/amd64`,
    теги `ghcr.io/huhen/fortunata:latest` и `ghcr.io/huhen/fortunata:$VERSION`,
    лейбл `org.opencontainers.image.source=https://github.com/huhen/fortunata`,
-   кэш `type=gha`.
+   кэш `type=gha` (`cache-to` с `mode=max,ignore-error=true`).
 
 ## Правки в compose
 
@@ -84,7 +86,8 @@ Job `release`, шаги:
 
 - **Прямой push в `main` мимо PR** — релиза нет: релиз строго PR-управляемый.
 - **Два мержа в один день** — версии различаются коротким хешем, коллизий нет.
-- **Повторный запуск** — `action-gh-release` обновляет существующий релиз и перезаливает артефакт (не падает); повторный запуск после сбоя — штатный способ починки.
+- **Повторный запуск** — версия детерминирована коммитом (дата из коммита), поэтому перезапуск в любой день указывает на ту же версию: `action-gh-release` обновляет существующий релиз и перезаливает артефакт (не падает).
+- **Три и более быстрых мержа подряд** — `queue: max` держит ожидающие релизные запуски в очереди (отмены нет), `latest` публикуется последовательно.
 - **PR из форка** — релиз пропускается (`head.repo.fork == false` в guard'е): `GITHUB_TOKEN` для форков read-only, публикация всё равно невозможна.
 - **Пустое тело PR** — описание релиза = заголовок PR.
 
