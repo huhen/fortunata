@@ -11,6 +11,8 @@ const btnLogin = document.getElementById('btn-login');
 const btnSave = document.getElementById('btn-save');
 const btnCancel = document.getElementById('btn-cancel');
 const list = document.getElementById('admin-draws');
+const btnSync = document.getElementById('btn-sync');
+const syncStatus = document.getElementById('sync-status');
 
 let editNo = null; // null — добавление, число — редактирование существующего
 
@@ -72,6 +74,42 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
 // Добавление / редактирование
 btnSave.addEventListener('click', save);
 btnCancel.addEventListener('click', () => setEditMode(null));
+
+// Синхронизация с архивом timelottery.ru: добавляем только новые розыгрыши.
+btnSync.addEventListener('click', sync);
+
+async function sync() {
+  syncStatus.hidden = true;
+  btnSync.disabled = true;
+  btnSync.textContent = 'Синхронизация…';
+  try {
+    const res = await api('/api/sync', { method: 'POST', body: {} });
+    syncStatus.textContent = syncSummary(res);
+    syncStatus.className = 'hint';
+  } catch (e) {
+    syncStatus.textContent = e.message;
+    syncStatus.className = 'error';
+  } finally {
+    btnSync.disabled = false;
+    btnSync.textContent = 'Синхронизировать';
+    syncStatus.hidden = false;
+    refreshList();
+  }
+}
+
+// syncSummary — краткий итог синхронизации одной строкой.
+function syncSummary(res) {
+  const issues = res.issues ?? [];
+  if (res.added === 0 && issues.length === 0) {
+    return 'Новых розыгрышей нет';
+  }
+  const parts = [`Добавлено ${res.added}, пропущено ${res.skipped}`];
+  if (issues.length > 0) {
+    const names = issues.map((i) => (i.drawNo > 0 ? `№ ${i.drawNo}` : 'строка без номера'));
+    parts.push(`не удалось разобрать: ${names.join(', ')}`);
+  }
+  return parts.join('; ');
+}
 
 async function save() {
   formError.hidden = true;
