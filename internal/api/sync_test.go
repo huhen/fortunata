@@ -3,9 +3,11 @@ package api
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"fortunata/internal/store"
@@ -183,6 +185,43 @@ func TestSyncUpstreamError(t *testing.T) {
 	ts := newSyncServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	})
+	c := loginClient(t, ts)
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, хотим 502", resp.StatusCode)
+	}
+}
+
+// Контракт для фронта: issues — всегда массив, никогда null.
+func TestSyncIssuesAlwaysArray(t *testing.T) {
+	ts := newSyncServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(readArchiveFixture(t)))
+	})
+	c := loginClient(t, ts)
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"issues":[]`) {
+		t.Fatalf(`в ответе нет "issues":[]: %s`, raw)
+	}
+}
+
+func TestSyncUpstreamUnreachable(t *testing.T) {
+	// Закрытый апстрим: transport-ошибка, а не HTTP-статус.
+	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	deadURL := dead.URL
+	dead.Close()
+	st, err := store.Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { st.Close() })
+	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, deadURL))
+	t.Cleanup(ts.Close)
 	c := loginClient(t, ts)
 	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
 	defer resp.Body.Close()

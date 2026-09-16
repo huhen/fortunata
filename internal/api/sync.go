@@ -14,9 +14,10 @@ import (
 	"fortunata/internal/timelottery"
 )
 
-// archiveClient — клиент скачивания архива; таймаут меньше WriteTimeout
-// сервера, чтобы ответ успел уйти клиенту.
-var archiveClient = &http.Client{Timeout: 20 * time.Second}
+// archiveClient — клиент скачивания архива; таймаут должен оставаться
+// меньше WriteTimeout HTTP-сервера (15 с в cmd/server/main.go), иначе
+// вставки закоммитятся, а ответ до клиента не дойдёт.
+var archiveClient = &http.Client{Timeout: 10 * time.Second}
 
 // maxArchiveBytes — лимит размера страницы архива (реальная ~0,2 МБ).
 const maxArchiveBytes = 5 << 20
