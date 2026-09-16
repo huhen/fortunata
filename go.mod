@@ -1,4 +1,4 @@
-module generator
+module fortunata
 
 go 1.25.0
 

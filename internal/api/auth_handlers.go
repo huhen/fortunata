@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"generator/internal/auth"
+	"fortunata/internal/auth"
 )
 
 // wrongPasswordPause — пауза перед ответом 401, замедляет перебор пароля.

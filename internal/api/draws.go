@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strconv"
 
-	"generator/internal/store"
+	"fortunata/internal/store"
 )
 
 type drawPayload struct {

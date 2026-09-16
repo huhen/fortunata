@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"generator/internal/store"
+	"fortunata/internal/store"
 )
 
 // newTestServer поднимает api на httptest с паролем "pass123".

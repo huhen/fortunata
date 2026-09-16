@@ -15,9 +15,9 @@ import (
 	"syscall"
 	"time"
 
-	"generator/internal/api"
-	"generator/internal/store"
-	"generator/web"
+	"fortunata/internal/api"
+	"fortunata/internal/store"
+	"fortunata/web"
 )
 
 // Config — все настройки приложения, читаемые из окружения.
@@ -27,7 +27,7 @@ type Config struct {
 	Secret       string // SESSION_SECRET; если пуст — случайный
 	SecretRandom bool   // true, если SECRET сгенерирован при старте
 	CookieSecure bool   // COOKIE_SECURE, по умолчанию false (за Traefik ставят true)
-	DBPath       string // DB_PATH, по умолчанию "generator.db"
+	DBPath       string // DB_PATH, по умолчанию "fortunata.db"
 }
 
 func loadConfig(getenv func(string) string) (Config, error) {
@@ -39,7 +39,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		cfg.Addr = ":8080"
 	}
 	if cfg.DBPath == "" {
-		cfg.DBPath = "generator.db"
+		cfg.DBPath = "fortunata.db"
 	}
 	cfg.Password = getenv("ADMIN_PASSWORD")
 	if cfg.Password == "" {
