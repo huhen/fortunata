@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7c3aed">
+  <title>Fortunata — предсказатель</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar"><h1>Fortunata · предсказатель</h1></header>
+
+  <nav class="tabs" role="tablist" aria-label="Разделы">
+    <button class="tab active" data-tab="generate" role="tab" aria-selected="true">Генератор</button>
+    <button class="tab" data-tab="archive" role="tab" aria-selected="false">Архив</button>
+  </nav>
+
+  <main>
+    <section id="tab-generate" class="panel active" role="tabpanel">
+      <div class="card">
+        <label for="count">Сколько билетов сгенерировать</label>
+        <input id="count" type="number" inputmode="numeric" min="1" max="100" value="10">
+        <button id="btn-generate" class="btn-primary">Сгенерировать</button>
+        <p id="gen-error" class="error" hidden></p>
+      </div>
+      <div id="tickets"></div>
+    </section>
+
+    <section id="tab-archive" class="panel" role="tabpanel">
+      <div id="draws-list"></div>
+    </section>
+  </main>
+
+  <footer><a href="/admin">Редактировать розыгрыши</a></footer>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

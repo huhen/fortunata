@@ -1,0 +1,9 @@
+.claude/settings.local.json
+/data/
+*.db
+*.db-wal
+*.db-shm
+.env
+.playwright-mcp/
+
+/generator

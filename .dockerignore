@@ -1,0 +1,14 @@
+.git
+.claude
+docs
+data
+*.db
+*.db-wal
+*.db-shm
+.env
+compose.yaml
+compose.local.yaml
+.env.example
+Dockerfile
+README.md
+generator

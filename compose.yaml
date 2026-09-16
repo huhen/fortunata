@@ -1,0 +1,35 @@
+services:
+  generator:
+    build: .
+    image: generator:latest
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?задайте ADMIN_PASSWORD в .env}
+      SESSION_SECRET: ${SESSION_SECRET:?задайте SESSION_SECRET в .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      DB_PATH: /data/generator.db
+      ADDR: ":8080"
+    volumes:
+      - data:/data
+    networks:
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.generator.rule=Host(`${DOMAIN:?задайте DOMAIN в .env}`)
+      - traefik.http.routers.generator.entrypoints=websecure
+      - traefik.http.routers.generator.tls.certresolver=${TRAEFIK_CERTRESOLVER:?задайте TRAEFIK_CERTRESOLVER в .env}
+      - traefik.http.services.generator.loadbalancer.server.port=8080
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+
+networks:
+  proxy:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  data:

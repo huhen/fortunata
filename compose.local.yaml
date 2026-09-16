@@ -1,0 +1,17 @@
+services:
+  generator:
+    build: .
+    image: generator:local
+    ports:
+      - "8080:8080"
+    environment:
+      ADMIN_PASSWORD: test123
+      SESSION_SECRET: local-test-secret
+      COOKIE_SECURE: "false"
+      DB_PATH: /data/generator.db
+      ADDR: ":8080"
+    volumes:
+      - generator-local-data:/data
+
+volumes:
+  generator-local-data:

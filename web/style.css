@@ -1,0 +1,152 @@
+/* Мобильный-first, системный шрифт, светлая и тёмная темы. */
+:root {
+  --bg: #f5f6fa;
+  --card: #ffffff;
+  --text: #1c1c28;
+  --muted: #5b6472;
+  --accent: #7c3aed;
+  --accent-text: #ffffff;
+  --ball: #f59e0b;
+  --ball-text: #1c1c28;
+  --border: #e5e7eb;
+  --danger: #dc2626;
+  --link: var(--accent);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12121a;
+    --card: #1e1e2a;
+    --text: #f3f4f6;
+    --muted: #9ca3af;
+    --border: #2e2e3d;
+    --danger: #f87171;
+    --link: #a78bfa;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 12px;
+}
+.topbar h1 {
+  font-size: 1.05rem;
+  margin: 0;
+  padding: 14px 16px 10px;
+  text-align: center;
+}
+.tabs {
+  display: flex;
+  gap: 6px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0 12px;
+}
+.tab {
+  flex: 1;
+  min-height: 44px;
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+}
+.tab.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.panel { display: none; margin-top: 12px; }
+.panel.active { display: block; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+label { display: block; margin: 10px 0 6px; font-size: 0.95rem; }
+input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px;
+  font-size: 1.05rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+input:disabled { opacity: 0.55; }
+.btn-primary, .btn-secondary, .btn-danger {
+  min-height: 48px;
+  padding: 0 18px;
+  margin-top: 12px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.btn-primary { width: 100%; background: var(--accent); color: var(--accent-text); }
+.btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.form-actions { display: flex; gap: 8px; }
+.form-actions .btn-primary { width: auto; flex: 1; }
+.ticket {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.ball {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: var(--ball);
+  color: var(--ball-text);
+}
+.ball.bonus { background: var(--accent); color: var(--accent-text); }
+.ball.small { width: 32px; height: 32px; font-size: 0.8rem; }
+#tickets:empty::after { content: 'Билеты появятся здесь'; color: var(--muted); }
+.draw-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.draw-no { font-weight: 700; margin-right: 4px; }
+.row-actions { display: flex; gap: 8px; width: 100%; margin-top: 8px; }
+.row-actions button { flex: 1; min-height: 44px; margin-top: 0; }
+.error { color: var(--danger); font-size: 0.95rem; }
+.hint { color: var(--muted); font-size: 0.9rem; }
+.hint a { color: var(--link); }
+footer { text-align: center; padding: 16px; }
+footer a { color: var(--muted); }

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#7c3aed">
+  <title>Fortunata — редактирование розыгрышей</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar"><h1>Редактирование розыгрышей</h1></header>
+
+  <main>
+    <section id="login-card" class="card" hidden>
+      <h2>Вход</h2>
+      <label for="password">Пароль</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <button id="btn-login" class="btn-primary">Войти</button>
+      <p id="login-error" class="error" hidden></p>
+    </section>
+
+    <section id="panel" hidden>
+      <div class="card">
+        <h2>Добавить розыгрыш</h2>
+        <label for="draw-no">Номер розыгрыша</label>
+        <input id="draw-no" type="number" inputmode="numeric" min="1">
+        <label for="combo">Комбинация: 7 чисел 1–35 и бонус 1–54</label>
+        <input id="combo" type="text"
+               placeholder="02, 19, 34, 07, 26, 03, 14 и 48">
+        <p class="hint">Откуда брать результаты:
+          <a href="https://timelottery.ru/arhiv/rezultaty-vseh-rozygryshej-fortunata/"
+             target="_blank" rel="noopener">timelottery.ru — архив розыгрышей Fortunata</a>
+        </p>
+        <div class="form-actions">
+          <button id="btn-save" class="btn-primary">Добавить</button>
+          <button id="btn-cancel" class="btn-secondary" hidden>Отмена</button>
+        </div>
+        <p id="form-error" class="error" hidden></p>
+      </div>
+      <div id="admin-draws"></div>
+      <button id="btn-logout" class="btn-secondary">Выйти</button>
+    </section>
+  </main>
+
+  <footer><a href="/">← К генератору</a></footer>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>
