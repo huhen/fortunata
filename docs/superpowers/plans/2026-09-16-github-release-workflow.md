@@ -153,19 +153,21 @@ jobs:
             go build -trimpath -ldflags "-s -w" \
             -o dist/generator-linux-amd64 ./cmd/server
 
-      - name: Описание релиза (тело PR, если пусто — заголовок)
+      - name: Описание релиза (заголовок и тело PR)
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          if [ -z "$(printf '%s' "$PR_BODY" | tr -d '[:space:]')" ]; then BODY="$PR_TITLE"; else BODY="$PR_BODY"; fi
-          printf '%s\n' "$BODY" > dist/release-notes.md
+          printf '# %s\n' "$PR_TITLE" > dist/release-notes.md
+          if [ -n "$(printf '%s' "$PR_BODY" | tr -d '[:space:]')" ]; then
+            printf '\n%s\n' "$PR_BODY" >> dist/release-notes.md
+          fi
 
       - name: GitHub Release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.VERSION }}
-          name: ${{ github.event.pull_request.title }}
+          name: ${{ env.VERSION }}
           body_path: dist/release-notes.md
           files: dist/generator-linux-amd64
           fail_on_unmatched_files: true
