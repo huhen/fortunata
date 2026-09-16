@@ -62,6 +62,9 @@ Traefik должен иметь доступ к этой сети; роутер 
 
 ## Замечания по деплою
 
+- Образ сервиса тянется из GHCR. Пакет `fortunata` должен оставаться
+  публичным (GitHub → Packages → fortunata → Package settings), иначе
+  `docker compose pull` без `docker login` упадёт.
 - Данные хранятся в named volume `data` (файл `/data/generator.db`).
   Бэкап: `docker run --rm -v <project>_data:/data -v $(pwd):/backup alpine \
   tar czf /backup/generator-db.tar.gz -C /data .` (имя volume —

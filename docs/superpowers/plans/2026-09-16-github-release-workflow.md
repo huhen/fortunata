@@ -45,6 +45,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
 
@@ -67,6 +68,7 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -79,7 +81,7 @@ jobs:
           platforms: linux/amd64
           push: false
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 ```
 
 - [ ] **Step 3: Проверить actionlint**
@@ -121,11 +123,13 @@ permissions:
 concurrency:
   group: release-main
   cancel-in-progress: false
+  queue: max
 
 jobs:
   release:
     if: github.event.pull_request.merged == true && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       IMAGE: ghcr.io/${{ github.repository }}
     steps:
@@ -134,7 +138,7 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
       - name: Версия (CalVer + хеш)
-        run: echo "VERSION=v$(date -u +%Y.%m.%d)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+        run: echo "VERSION=v$(git show -s --format='%cd' --date=format:'%Y.%m.%d' HEAD)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@v7
         with:
@@ -154,8 +158,7 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          BODY="$PR_BODY"
-          if [ -z "$BODY" ]; then BODY="$PR_TITLE"; fi
+          if [ -z "$(printf '%s' "$PR_BODY" | tr -d '[:space:]')" ]; then BODY="$PR_TITLE"; else BODY="$PR_BODY"; fi
           printf '%s\n' "$BODY" > dist/release-notes.md
 
       - name: GitHub Release
@@ -186,7 +189,7 @@ jobs:
             ${{ env.IMAGE }}:${{ env.VERSION }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,ignore-error=true
 ```
 
 - [ ] **Step 2: Проверить actionlint**
