@@ -6,7 +6,7 @@
 
 **Architecture:** Два воркфлоу: `ci.yml` (pull_request opened/synchronize/reopened → тесты + сборка образа без публикации) и `release.yml` (pull_request closed + `merged == true` → версия CalVer, бинарник, GitHub Release из PR, образ в GHCR с тегами `latest` и версией). Спецификация: `docs/superpowers/specs/2026-09-16-github-release-workflow-design.md`.
 
-**Tech Stack:** GitHub Actions, GHCR, Docker Compose v2, Go toolchain, actionlint (через `go run`).
+**Tech Stack:** GitHub Actions, GHCR, Docker Compose v2, Go toolchain, actionlint v1.7.9 (установлен локально, `/snap/bin/actionlint`).
 
 **Версии действий** (проверены через GitHub API, 2026-09-16): `actions/checkout@v7`, `actions/setup-go@v7`, `actions/setup-node@v7`, `docker/setup-buildx-action@v4`, `docker/login-action@v4`, `docker/build-push-action@v7`, `softprops/action-gh-release@v3`.
 
@@ -85,10 +85,10 @@ jobs:
 - [ ] **Step 3: Проверить actionlint**
 
 ```bash
-go run github.com/rhysd/actionlint/cmd/actionlint@latest .github/workflows/ci.yml
+actionlint .github/workflows/ci.yml
 ```
 
-Expected: пустой вывод, exit-код 0. Первый запуск скачает модуль — это может занять до минуты.
+Expected: пустой вывод, exit-код 0.
 
 - [ ] **Step 4: Commit**
 
@@ -189,7 +189,7 @@ jobs:
 - [ ] **Step 2: Проверить actionlint**
 
 ```bash
-go run github.com/rhysd/actionlint/cmd/actionlint@latest .github/workflows/release.yml
+actionlint .github/workflows/release.yml
 ```
 
 Expected: пустой вывод, exit-код 0.
