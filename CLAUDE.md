@@ -27,7 +27,7 @@ docker compose -f compose.local.yaml up --build -d   # Docker без Traefik (п
 ## Окружение
 
 `ADMIN_PASSWORD` обязателен (без него сервер не стартует). Остальные: `ADDR`
-(`:8080`), `DB_PATH` (`generator.db`), `SESSION_SECRET` (пусто = случайный),
+(`:8080`), `DB_PATH` (`fortunata.db`), `SESSION_SECRET` (пусто = случайный),
 `COOKIE_SECURE` (`false`; за HTTPS — `true`).
 
 ## Gotchas

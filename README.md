@@ -57,7 +57,7 @@ node --test web/parse.test.mjs   # парсер комбинации (Node ≥ 1
    docker compose up -d
    ```
 
-Traefik должен иметь доступ к этой сети; роутер `generator` слушает домен
+Traefik должен иметь доступ к этой сети; роутер `fortunata` слушает домен
 из `DOMAIN` на entrypoint `websecure` с certresolver из `TRAEFIK_CERTRESOLVER`.
 
 ## Замечания по деплою
@@ -65,9 +65,9 @@ Traefik должен иметь доступ к этой сети; роутер 
 - Образ сервиса тянется из GHCR. Пакет `fortunata` должен оставаться
   публичным (GitHub → Packages → fortunata → Package settings), иначе
   `docker compose pull` без `docker login` упадёт.
-- Данные хранятся в named volume `data` (файл `/data/generator.db`).
+- Данные хранятся в named volume `data` (файл `/data/fortunata.db`).
   Бэкап: `docker run --rm -v <project>_data:/data -v $(pwd):/backup alpine \
-  tar czf /backup/generator-db.tar.gz -C /data .` (имя volume —
+  tar czf /backup/fortunata-db.tar.gz -C /data .` (имя volume —
   `docker volume ls`; архивируем весь каталог целиком — в WAL-режиме SQLite
   свежие записи живут и в `-wal` файле). Осторожно: `docker compose down -v` удаляет volume
   вместе с базой.
@@ -83,7 +83,7 @@ Traefik должен иметь доступ к этой сети; роутер 
 | Переменная | Назначение | По умолчанию |
 |---|---|---|
 | `ADDR` | Адрес слушателя | `:8080` |
-| `DB_PATH` | Путь к файлу SQLite | `generator.db` |
+| `DB_PATH` | Путь к файлу SQLite | `fortunata.db` |
 | `ADMIN_PASSWORD` | Пароль редактирования (обязателен) | — |
 | `SESSION_SECRET` | Секрет подписи сессий; пусто — случайный | случайный |
 | `COOKIE_SECURE` | Флаг Secure у cookie (true за HTTPS) | `false` |
