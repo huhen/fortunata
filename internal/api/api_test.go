@@ -504,6 +504,9 @@ func TestStats(t *testing.T) {
 	if len(body.Main) != 0 || len(body.Bonus) != 0 {
 		t.Fatalf("пустая база: main = %v, bonus = %v", body.Main, body.Bonus)
 	}
+	if body.Main == nil || body.Bonus == nil {
+		t.Fatal("пустая база: main/bonus = null, хотим []")
+	}
 
 	// Сид: числа 1,2,3 — по два раза; бонус 8 — дважды.
 	c := loginClient(t, ts)
@@ -513,6 +516,9 @@ func TestStats(t *testing.T) {
 	} {
 		r := post(t, c, ts.URL+"/api/draws", d)
 		r.Body.Close()
+		if r.StatusCode != http.StatusCreated {
+			t.Fatalf("сид %v: status = %d, хотим 201", d["drawNo"], r.StatusCode)
+		}
 	}
 
 	resp2 := get(t, clientWithJar(), ts.URL+"/api/stats")
