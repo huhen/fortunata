@@ -15,6 +15,9 @@ tabs.forEach((tab) => {
     if (tab.dataset.tab === 'archive') {
       loadDraws();
     }
+    if (tab.dataset.tab === 'stats') {
+      loadStats();
+    }
   });
 });
 
@@ -69,4 +72,45 @@ async function loadDraws() {
   } catch (e) {
     box.textContent = e.message;
   }
+}
+
+// Статистика
+async function loadStats() {
+  const box = document.getElementById('stats-list');
+  try {
+    const data = await api('/api/stats');
+    box.replaceChildren();
+    if (data.main.length === 0) {
+      box.textContent = 'Розыгрышей пока нет — добавьте их через редактирование.';
+      return;
+    }
+    box.append(statsCard('Основные шары', data.main, ''));
+    box.append(statsCard('Бонусные шары', data.bonus, 'bonus'));
+  } catch (e) {
+    box.textContent = e.message;
+  }
+}
+
+// statsCard — карточка с заголовком и списком «шар + количество выпадений».
+function statsCard(title, freqs, extra) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const h2 = document.createElement('h2');
+  h2.className = 'stat-title';
+  h2.textContent = title;
+  card.append(h2);
+  const list = document.createElement('div');
+  list.className = 'stat-list';
+  for (const f of freqs) {
+    const item = document.createElement('span');
+    item.className = 'stat-item';
+    item.append(ball(f.n, extra));
+    const count = document.createElement('span');
+    count.className = 'ball-count';
+    count.textContent = f.count;
+    item.append(count);
+    list.append(item);
+  }
+  card.append(list);
+  return card;
 }

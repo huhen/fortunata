@@ -150,3 +150,7 @@ input:disabled { opacity: 0.55; }
 .hint a { color: var(--link); }
 footer { text-align: center; padding: 16px; }
 footer a { color: var(--muted); }
+.stat-title { font-size: 1rem; font-weight: 700; margin: 0 0 10px; }
+.stat-list { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.stat-item { display: inline-flex; align-items: center; gap: 4px; }
+.ball-count { color: var(--muted); font-size: 0.85rem; font-weight: 700; }
