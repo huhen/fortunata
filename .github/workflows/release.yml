@@ -39,7 +39,7 @@ jobs:
       - name: Сборка бинарника linux/amd64
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-            go build -trimpath -ldflags "-s -w" \
+            go build -trimpath -ldflags "-s -w -X fortunata/internal/version.Version=${VERSION}" \
             -o dist/fortunata-linux-amd64 ./cmd/server
 
       - name: Описание релиза (заголовок и тело PR)
@@ -73,6 +73,8 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          build-args: |
+            VERSION=${{ env.VERSION }}
           platforms: linux/amd64
           push: true
           tags: |
