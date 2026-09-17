@@ -237,3 +237,29 @@ func TestFrequencyEmptyBase(t *testing.T) {
 		t.Fatalf("пустая база: main = %v, хотим непустой пустой срез", main)
 	}
 }
+
+func TestBonusFrequency(t *testing.T) {
+	st := openTest(t)
+	for _, d := range []Draw{
+		{DrawNo: 1, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8},
+		{DrawNo: 2, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 54},
+		{DrawNo: 3, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8},
+	} {
+		if err := st.Create(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := st.BonusFrequency()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Freq{{N: 8, Count: 2}, {N: 54, Count: 1}}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, хотим %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("[%d] = %+v, хотим %+v", i, got[i], want[i])
+		}
+	}
+}

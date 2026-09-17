@@ -211,3 +211,11 @@ const mainFrequencyQuery = `SELECT n, COUNT(*) c FROM (
 func (s *Store) MainFrequency() ([]Freq, error) {
 	return s.frequency("main frequency", mainFrequencyQuery)
 }
+
+const bonusFrequencyQuery = `SELECT bonus n, COUNT(*) c FROM draws GROUP BY bonus ORDER BY c DESC, bonus ASC`
+
+// BonusFrequency — сколько раз выпал каждый бонусный шар.
+// Никогда не выпадавшие номера в результат не попадают.
+func (s *Store) BonusFrequency() ([]Freq, error) {
+	return s.frequency("bonus frequency", bonusFrequencyQuery)
+}
