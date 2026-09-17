@@ -166,3 +166,47 @@ func (s *Store) Delete(drawNo int64) error {
 	}
 	return nil
 }
+
+// Freq — сколько раз выпал шар n.
+type Freq struct {
+	N     int `json:"n"`
+	Count int `json:"count"`
+}
+
+// frequency выполняет запрос вида «номер, количество» с сортировкой
+// count DESC, затем номер ASC, и собирает результат в срез.
+func (s *Store) frequency(query string) ([]Freq, error) {
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("frequency: %w", err)
+	}
+	defer rows.Close()
+	out := []Freq{}
+	for rows.Next() {
+		var f Freq
+		if err := rows.Scan(&f.N, &f.Count); err != nil {
+			return nil, fmt.Errorf("scan freq: %w", err)
+		}
+		out = append(out, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows: %w", err)
+	}
+	return out, nil
+}
+
+const mainFrequencyQuery = `SELECT n, COUNT(*) c FROM (
+	SELECT n1 n FROM draws UNION ALL
+	SELECT n2 FROM draws UNION ALL
+	SELECT n3 FROM draws UNION ALL
+	SELECT n4 FROM draws UNION ALL
+	SELECT n5 FROM draws UNION ALL
+	SELECT n6 FROM draws UNION ALL
+	SELECT n7 FROM draws
+) GROUP BY n ORDER BY c DESC, n ASC`
+
+// MainFrequency — сколько раз выпал каждый основной шар (n1..n7).
+// Никогда не выпадавшие номера в результат не попадают.
+func (s *Store) MainFrequency() ([]Freq, error) {
+	return s.frequency(mainFrequencyQuery)
+}
