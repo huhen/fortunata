@@ -22,6 +22,8 @@ docker compose -f compose.local.yaml up --build -d   # Docker без Traefik (п
 - `internal/store/` — SQLite (`modernc.org/sqlite`, чистый Go, без cgo), WAL-режим
 - `internal/generate/` — частотно-взвешенная генерация (вес = появления + 1),
   RNG-интерфейс для детерминированных тестов
+- `internal/timelottery/` — парсер страницы архива timelottery.ru для
+  `POST /api/sync` (ищет строки данных по содержимому, устойчив к редизайну)
 - `web/` — статика, встраивается через `//go:embed` в `web/embed.go`
 
 ## Окружение

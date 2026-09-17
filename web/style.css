@@ -103,7 +103,7 @@ input:disabled { opacity: 0.55; }
 .btn-primary { width: 100%; background: var(--accent); color: var(--accent-text); }
 .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
-.form-actions { display: flex; gap: 8px; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .form-actions .btn-primary { width: auto; flex: 1; }
 .ticket {
   display: flex;
