@@ -2,6 +2,7 @@
 package timelottery
 
 import (
+	"math"
 	"os"
 	"reflect"
 	"strings"
@@ -98,5 +99,60 @@ func TestParseStructuralError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "не найдены результаты") {
 		t.Fatalf("неожиданный текст ошибки: %v", err)
+	}
+}
+
+func TestExtractNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want []int
+	}{
+		{"дата", "14 сент", []int{14}},
+		{"приз с запятой", "93,3 млн", []int{93, 3}},
+		{"юникод-тире", "1–2", []int{1, 2}},
+		{"неразрывный пробел", "7\u00a011", []int{7, 11}},
+		{"цифры в конце строки", "7 и 11", []int{7, 11}},
+		{"комбинация целиком", "19, 28, 24, 21, 10, 29, 05 и 18", []int{19, 28, 24, 21, 10, 29, 5, 18}},
+		// 20 цифр: Atoi сигнализирует о переполнении (ErrRange), ошибка
+		// игнорируется и возвращается насыщенное MaxInt — задокументированное
+		// поведение; в реальной строке такой артефакт отсекается validate.
+		{"переполнение Atoi", "99999999999999999999", []int{math.MaxInt}},
+		{"нет цифр", "архив", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := extractNumbers(tc.in); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("extractNumbers(%q) = %v, хотели %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidate(t *testing.T) {
+	ok := []int{5, 10, 19, 21, 24, 28, 29}
+	for _, tc := range []struct {
+		name  string
+		main  []int
+		bonus int
+		fragm string // "" — валидна
+	}{
+		{"валидна", ok, 18, ""},
+		{"число вне диапазона", []int{0, 10, 19, 21, 24, 28, 29}, 18, "0 вне диапазона"},
+		{"число больше 35", []int{5, 10, 19, 21, 24, 28, 36}, 18, "36 вне диапазона"},
+		{"повтор", []int{5, 5, 19, 21, 24, 28, 29}, 18, "повторяется"},
+		{"бонус вне диапазона", ok, 55, "бонусное число 55 вне диапазона"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			msg := validate(tc.main, tc.bonus)
+			if tc.fragm == "" {
+				if msg != "" {
+					t.Fatalf("validate(%v, %d) = %q, хотели \"\"", tc.main, tc.bonus, msg)
+				}
+				return
+			}
+			if !strings.Contains(msg, tc.fragm) {
+				t.Fatalf("validate(%v, %d) = %q, хотели подстроку %q", tc.main, tc.bonus, msg, tc.fragm)
+			}
+		})
 	}
 }
