@@ -9,8 +9,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/fortuna
 
 # Минимальный рантайм: только бинарник и пустой /data с владельцем 65532
 # (иначе named volume при первой инициализации получит root:root и БД не создастся).
+# CA-бандл нужен для исходящего HTTPS (синхронизация с timelottery.ru);
+# без него Go не проверит сертификаты: x509: unknown authority.
 FROM scratch
 COPY --from=build /out/fortunata /fortunata
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=build --chown=65532:65532 /out/data /data
 ENV DB_PATH=/data/fortunata.db ADDR=:8080
 VOLUME /data
