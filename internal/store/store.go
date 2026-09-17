@@ -175,22 +175,23 @@ type Freq struct {
 
 // frequency выполняет запрос вида «номер, количество» с сортировкой
 // count DESC, затем номер ASC, и собирает результат в срез.
-func (s *Store) frequency(query string) ([]Freq, error) {
+// label попадает в обёрнутые ошибки и различает источники сбоя.
+func (s *Store) frequency(label, query string) ([]Freq, error) {
 	rows, err := s.db.Query(query)
 	if err != nil {
-		return nil, fmt.Errorf("frequency: %w", err)
+		return nil, fmt.Errorf("%s: %w", label, err)
 	}
 	defer rows.Close()
 	out := []Freq{}
 	for rows.Next() {
 		var f Freq
 		if err := rows.Scan(&f.N, &f.Count); err != nil {
-			return nil, fmt.Errorf("scan freq: %w", err)
+			return nil, fmt.Errorf("%s: scan freq: %w", label, err)
 		}
 		out = append(out, f)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows: %w", err)
+		return nil, fmt.Errorf("%s: rows: %w", label, err)
 	}
 	return out, nil
 }
@@ -208,5 +209,5 @@ const mainFrequencyQuery = `SELECT n, COUNT(*) c FROM (
 // MainFrequency — сколько раз выпал каждый основной шар (n1..n7).
 // Никогда не выпадавшие номера в результат не попадают.
 func (s *Store) MainFrequency() ([]Freq, error) {
-	return s.frequency(mainFrequencyQuery)
+	return s.frequency("main frequency", mainFrequencyQuery)
 }
