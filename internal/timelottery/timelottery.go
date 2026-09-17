@@ -59,7 +59,7 @@ func Parse(r io.Reader) ([]Draw, []Issue, error) {
 		if count > 1 {
 			issues = append(issues, Issue{
 				DrawNo: no,
-				Reason: fmt.Sprintf("неоднозначно: найдено %d ячеек с восемью числами", count),
+				Reason: fmt.Sprintf("неоднозначно: ячеек с восемью числами — %d", count),
 			})
 			continue
 		}
@@ -78,7 +78,8 @@ func Parse(r io.Reader) ([]Draw, []Issue, error) {
 }
 
 // numbersCell возвращает первую из ячеек с ровно восемью числами
-// (семёрка + бонус); count — сколько таких ячеек всего.
+// (семёрка + бонус); count — сколько таких ячеек всего, nums значим
+// только при count == 1.
 func numbersCell(cells []string) (nums []int, count int) {
 	for _, text := range cells {
 		ns := extractNumbers(text)
