@@ -8,19 +8,37 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"fortunata/internal/store"
 	"fortunata/internal/timelottery"
 )
 
-// archiveClient — клиент скачивания архива; таймаут должен оставаться
-// меньше WriteTimeout HTTP-сервера (15 с в cmd/server/main.go), иначе
-// вставки закоммитятся, а ответ до клиента не дойдёт.
-var archiveClient = &http.Client{Timeout: 10 * time.Second}
-
 // maxArchiveBytes — лимит размера страницы архива (реальная ~0,2 МБ).
 const maxArchiveBytes = 5 << 20
+
+// errArchiveTooBig — страница архива превысила лимит; timelottery.Parse
+// оборачивает ошибку ридера через %w («разбор html: …»), поэтому сентинелл
+// распознаётся через errors.Is.
+var errArchiveTooBig = fmt.Errorf("страница архива больше %d МБ", maxArchiveBytes>>20)
+
+// limitedReader читает не более n байт, дальше — errArchiveTooBig:
+// io.LimitReader тихо обрезал бы страницу, давая частичный парс с 200.
+type limitedReader struct {
+	r io.Reader
+	n int64 // сколько байтов осталось прочитать
+}
+
+func (l *limitedReader) Read(p []byte) (int, error) {
+	if l.n <= 0 {
+		return 0, errArchiveTooBig
+	}
+	if int64(len(p)) > l.n {
+		p = p[:l.n]
+	}
+	n, err := l.r.Read(p)
+	l.n -= int64(n)
+	return n, err
+}
 
 type syncIssue struct {
 	DrawNo int64  `json:"drawNo"`
@@ -35,7 +53,7 @@ type syncResult struct {
 }
 
 func (h *Handler) syncDraws(w http.ResponseWriter, r *http.Request) {
-	draws, issues, err := fetchArchive(h.archiveURL)
+	draws, issues, err := h.fetchArchive(h.archiveURL)
 	if err != nil {
 		errorJSON(w, http.StatusBadGateway, err.Error())
 		return
@@ -60,8 +78,8 @@ func (h *Handler) syncDraws(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchArchive скачивает страницу архива и разбирает её.
-func fetchArchive(url string) ([]timelottery.Draw, []timelottery.Issue, error) {
-	resp, err := archiveClient.Get(url)
+func (h *Handler) fetchArchive(url string) ([]timelottery.Draw, []timelottery.Issue, error) {
+	resp, err := h.archiveClient.Get(url)
 	if err != nil {
 		slog.Warn("sync: загрузка архива", "url", url, "err", err)
 		return nil, nil, errors.New("не удалось загрузить страницу архива")
@@ -70,5 +88,12 @@ func fetchArchive(url string) ([]timelottery.Draw, []timelottery.Issue, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, nil, fmt.Errorf("сервер архива ответил %d", resp.StatusCode)
 	}
-	return timelottery.Parse(io.LimitReader(resp.Body, maxArchiveBytes))
+	draws, issues, err := timelottery.Parse(&limitedReader{r: resp.Body, n: maxArchiveBytes})
+	if err != nil {
+		if errors.Is(err, errArchiveTooBig) {
+			return nil, nil, errArchiveTooBig // без префикса «разбор html:»
+		}
+		return nil, nil, err
+	}
+	return draws, issues, nil
 }

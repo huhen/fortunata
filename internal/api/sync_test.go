@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"fortunata/internal/store"
 )
@@ -24,16 +25,23 @@ func readArchiveFixture(t *testing.T) string {
 	return string(b)
 }
 
-// newSyncServer поднимает api, у которого «архив» отдаёт handler.
-func newSyncServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+// newTestStore открывает in-memory стор; закрытие через t.Cleanup.
+func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
-	upstream := httptest.NewServer(handler)
-	t.Cleanup(upstream.Close)
 	st, err := store.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
+	return st
+}
+
+// newSyncServer поднимает api, у которого «архив» отдаёт handler.
+func newSyncServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	upstream := httptest.NewServer(handler)
+	t.Cleanup(upstream.Close)
+	st := newTestStore(t)
 	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, upstream.URL))
 	t.Cleanup(ts.Close)
 	return ts
@@ -215,11 +223,7 @@ func TestSyncUpstreamUnreachable(t *testing.T) {
 	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	deadURL := dead.URL
 	dead.Close()
-	st, err := store.Open(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
+	st := newTestStore(t)
 	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, deadURL))
 	t.Cleanup(ts.Close)
 	c := loginClient(t, ts)
@@ -227,5 +231,138 @@ func TestSyncUpstreamUnreachable(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("status = %d, хотим 502", resp.StatusCode)
+	}
+}
+
+// Таймаут скачивания архива: медленный апстрим при коротком клиенте → 502.
+// Возможен благодаря инъекции h.archiveClient (рефакторинг newHandler).
+// Ожидание апстрима (2 с) в 20 раз больше таймаута клиента (100 мс) —
+// детерминированно. При дисконнекте клиента httptest-сервер отменяет
+// контекст запроса, select в хендлере завершается, итого тест ~0,1 с.
+func TestSyncArchiveTimeout(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(2 * time.Second):
+		case <-r.Context().Done():
+		}
+	}))
+	t.Cleanup(upstream.Close)
+
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL)
+	h.archiveClient = &http.Client{Timeout: 100 * time.Millisecond}
+	mux := http.NewServeMux()
+	h.register(mux)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	c := loginClient(t, ts)
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, хотим 502", resp.StatusCode)
+	}
+}
+
+// Инвариант из комментария newHandler: таймаут скачивания архива должен
+// оставаться меньше WriteTimeout HTTP-сервера, иначе вставки в базу
+// закоммитятся, а ответ до клиента не дойдёт.
+func TestSyncArchiveClientTimeoutBelowWriteTimeout(t *testing.T) {
+	const writeTimeout = 15 * time.Second // WriteTimeout в cmd/server/main.go
+	if got := newHandler(newTestStore(t), "p", "s", false, "").archiveClient.Timeout; got >= writeTimeout {
+		t.Fatalf("таймаут archiveClient = %v, должен быть меньше WriteTimeout %v", got, writeTimeout)
+	}
+}
+
+// Страница архива больше лимита — 502, а не тихая обрезка с частичным
+// парсом: после первых 5 МБ есть ещё валидная строка, LimitReader её бы
+// потерял и вернул 200 с added=1.
+func TestSyncOversizeArchive(t *testing.T) {
+	pad := "<!-- отступ -->"
+	// страница: валидная строка №64, отступ (>5 МБ), валидная строка №63 после границы
+	page := "<html><body><table>" +
+		"<tr><td>64</td><td>14 сент</td><td><strong>19, 28, 24, 21, 10, 29, 05 и 18</strong></td><td>10 млн</td></tr>" +
+		strings.Repeat(pad, maxArchiveBytes/len(pad)+1) +
+		"<tr><td>63</td><td>13 сент</td><td><strong>11, 12, 16, 28, 29, 31, 35 и 14</strong></td><td>9 млн</td></tr>" +
+		"</table></body></html>"
+	ts := newSyncServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(page))
+	})
+	c := loginClient(t, ts)
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, хотим 502", resp.StatusCode)
+	}
+	var body struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body.Error, errArchiveTooBig.Error()) {
+		t.Fatalf("error = %q", body.Error)
+	}
+
+	// Частичных данных быть не должно: 502 до всякой вставки.
+	respList := get(t, c, ts.URL+"/api/draws")
+	defer respList.Body.Close()
+	var list struct {
+		Draws []struct{} `json:"draws"`
+	}
+	if err := json.NewDecoder(respList.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Draws) != 0 {
+		t.Fatalf("в базе есть розыгрыши: %d, хотели 0", len(list.Draws))
+	}
+}
+
+// Ветка ошибки БД в syncDraws: закрытый стор даёт issues «ошибка сохранения»
+// с 200. Логин в БД не ходит, поэтому сессию открываем до Close.
+func TestSyncStoreClosed(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(readArchiveFixture(t)))
+	}))
+	t.Cleanup(upstream.Close)
+
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL)
+	mux := http.NewServeMux()
+	h.register(mux)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	c := loginClient(t, ts)
+	h.st.Close() // провоцируем ошибку вставки
+
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, хотим 200", resp.StatusCode)
+	}
+	var res struct {
+		Added  int `json:"added"`
+		Issues []struct {
+			DrawNo int64  `json:"drawNo"`
+			Reason string `json:"reason"`
+		} `json:"issues"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Added != 0 || len(res.Issues) != 2 {
+		t.Fatalf("res = %+v", res)
+	}
+	wantNo := map[int64]bool{63: true, 64: true} // в archive.html два розыгрыша
+	for _, is := range res.Issues {
+		if is.Reason != "ошибка сохранения" {
+			t.Fatalf("issue = %+v", is)
+		}
+		if !wantNo[is.DrawNo] {
+			t.Fatalf("неожиданный номер розыгрыша в issue: %d", is.DrawNo)
+		}
+		delete(wantNo, is.DrawNo)
+	}
+	if len(wantNo) != 0 {
+		t.Fatalf("не все розыгрыши попали в issues, не хватает: %v", wantNo)
 	}
 }

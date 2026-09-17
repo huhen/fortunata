@@ -3,7 +3,8 @@
 //
 // Разбор не привязан к классам, стилям, порядку колонок и номеру таблицы:
 // строкой данных считается <tr>, у которого первая ячейка — целое число ≥ 1,
-// а среди остальных есть ячейка с ровно восемью числами (семёрка + бонус).
+// а среди остальных ровно одна ячейка с восемью числами (семёрка + бонус);
+// если таких ячеек несколько — строка уходит в Issue (неоднозначность).
 // У остальных ячеек такой плотности цифр не бывает: дата «14 сент» → 1 число,
 // «10 млн» → 1, «93,3 млн» → 2, «архив (#64)» → 1.
 package timelottery
@@ -51,9 +52,16 @@ func Parse(r io.Reader) ([]Draw, []Issue, error) {
 		if err != nil || no < 1 {
 			continue // шапка, сноска или строка другой таблицы
 		}
-		nums, ok := numbersCell(cells[1:])
-		if !ok {
+		nums, count := numbersCell(cells[1:])
+		if count == 0 {
 			continue // не похоже на строку данных
+		}
+		if count > 1 {
+			issues = append(issues, Issue{
+				DrawNo: no,
+				Reason: fmt.Sprintf("неоднозначно: ячеек с восемью числами — %d", count),
+			})
+			continue
 		}
 		main := nums[:7]
 		if msg := validate(main, nums[7]); msg != "" {
@@ -69,15 +77,20 @@ func Parse(r io.Reader) ([]Draw, []Issue, error) {
 	return draws, issues, nil
 }
 
-// numbersCell ищет первую ячейку с ровно восемью числами (семёрка + бонус).
-func numbersCell(cells []string) ([]int, bool) {
+// numbersCell возвращает первую из ячеек с ровно восемью числами
+// (семёрка + бонус); count — сколько таких ячеек всего, nums значим
+// только при count == 1.
+func numbersCell(cells []string) (nums []int, count int) {
 	for _, text := range cells {
-		nums := extractNumbers(text)
-		if len(nums) == 8 {
-			return nums, true
+		ns := extractNumbers(text)
+		if len(ns) == 8 {
+			if count == 0 {
+				nums = ns
+			}
+			count++
 		}
 	}
-	return nil, false
+	return nums, count
 }
 
 // validate — первые 7 чисел в 1–35 без повторов, бонус в 1–54;

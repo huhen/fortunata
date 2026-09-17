@@ -4,6 +4,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"fortunata/internal/auth"
 	"fortunata/internal/store"
@@ -16,20 +17,41 @@ const maxBodyBytes = 64 << 10
 const defaultArchiveURL = "https://timelottery.ru/arhiv/rezultaty-vseh-rozygryshej-fortunata/"
 
 type Handler struct {
-	st           *store.Store
-	auth         *auth.Manager
-	cookieSecure bool
-	archiveURL   string // источник синхронизации; переопределяется в тестах
+	st            *store.Store
+	auth          *auth.Manager
+	cookieSecure  bool
+	archiveURL    string       // источник синхронизации; переопределяется в тестах
+	archiveClient *http.Client // клиент скачивания архива; подменяется в тестах
+}
+
+// newHandler собирает Handler; маршруты регистрирует register.
+// Таймаут клиента должен оставаться меньше WriteTimeout HTTP-сервера
+// (15 с в cmd/server/main.go), иначе вставки закоммитятся, а ответ
+// до клиента не дойдёт.
+func newHandler(st *store.Store, password, secret string, cookieSecure bool, archiveURL string) *Handler {
+	if archiveURL == "" {
+		archiveURL = defaultArchiveURL
+	}
+	return &Handler{
+		st:            st,
+		auth:          auth.New(password, secret),
+		cookieSecure:  cookieSecure,
+		archiveURL:    archiveURL,
+		archiveClient: &http.Client{Timeout: 10 * time.Second},
+	}
 }
 
 // New собирает все /api-маршруты; main может добавить на этот же mux статику.
 // Пустой archiveURL заменяется на defaultArchiveURL.
 func New(st *store.Store, password, secret string, cookieSecure bool, archiveURL string) *http.ServeMux {
-	if archiveURL == "" {
-		archiveURL = defaultArchiveURL
-	}
-	h := &Handler{st: st, auth: auth.New(password, secret), cookieSecure: cookieSecure, archiveURL: archiveURL}
+	h := newHandler(st, password, secret, cookieSecure, archiveURL)
 	mux := http.NewServeMux()
+	h.register(mux)
+	return mux
+}
+
+// register регистрирует все /api-маршруты на mux.
+func (h *Handler) register(mux *http.ServeMux) {
 	mux.Handle("POST /api/login", requireJSON(h.login))
 	mux.Handle("POST /api/logout", requireJSON(h.logout))
 	mux.HandleFunc("GET /api/me", h.me)
@@ -39,7 +61,6 @@ func New(st *store.Store, password, secret string, cookieSecure bool, archiveURL
 	mux.Handle("DELETE /api/draws/{no}", h.session(h.deleteDraw))
 	mux.Handle("POST /api/sync", h.session(requireJSON(h.syncDraws)))
 	mux.Handle("POST /api/generate", requireJSON(h.generate))
-	return mux
 }
 
 // requireJSON защищает мутации: CSRF-запрос из формы со стороннего сайта

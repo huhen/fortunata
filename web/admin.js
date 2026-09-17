@@ -79,20 +79,23 @@ btnCancel.addEventListener('click', () => setEditMode(null));
 btnSync.addEventListener('click', sync);
 
 async function sync() {
-  syncStatus.hidden = true;
+  syncStatus.hidden = true; // скрыть прошлый итог
   btnSync.disabled = true;
   btnSync.textContent = 'Синхронизация…';
   try {
     const res = await api('/api/sync', { method: 'POST', body: {} });
+    // Канонический live-region: текст меняется в уже видимой области —
+    // смена объявляется скринридером.
+    syncStatus.hidden = false;
     syncStatus.textContent = syncSummary(res);
     syncStatus.className = 'hint';
   } catch (e) {
+    syncStatus.hidden = false;
     syncStatus.textContent = e.message;
     syncStatus.className = 'error';
   } finally {
     btnSync.disabled = false;
     btnSync.textContent = 'Синхронизировать';
-    syncStatus.hidden = false;
     refreshList();
   }
 }
@@ -105,7 +108,10 @@ function syncSummary(res) {
   }
   const parts = [`Добавлено ${res.added}, пропущено ${res.skipped}`];
   if (issues.length > 0) {
-    const names = issues.map((i) => (i.drawNo > 0 ? `№ ${i.drawNo}` : 'строка без номера'));
+    // Парсер создаёт Issue только при drawNo ≥ 1 (timelottery.Parse), и
+    // ошибки сохранения всегда с номером; «строка без номера» — защитный
+    // контракт на случай изменения парсера.
+    const names = issues.map((i) => (i.drawNo > 0 ? `№ ${i.drawNo} (${i.reason})` : 'строка без номера'));
     parts.push(`не удалось разобрать: ${names.join(', ')}`);
   }
   return parts.join('; ');

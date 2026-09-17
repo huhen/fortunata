@@ -26,8 +26,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
-      - name: Версия (CalVer + хеш)
-        run: echo "VERSION=v$(git show -s --format='%cd' --date=format:'%Y.%m.%d' HEAD)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+      - name: Версия (CalVer + время + хеш)
+        run: echo "VERSION=v$(git show -s --format='%cd' --date=format:'%Y.%m.%d-%H%M' HEAD)-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@v7
         with:

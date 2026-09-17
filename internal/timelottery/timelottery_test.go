@@ -2,6 +2,8 @@
 package timelottery
 
 import (
+	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"strings"
@@ -61,15 +63,36 @@ func TestParseIssues(t *testing.T) {
 		{60, "бонусное число 55 вне диапазона"},
 		{59, "0 вне диапазона"},
 	} {
-		found := false
-		for _, is := range issues {
-			if is.DrawNo == tc.no && strings.Contains(is.Reason, tc.fragm) {
-				found = true
+		t.Run(fmt.Sprintf("№%d", tc.no), func(t *testing.T) {
+			found := false
+			for _, is := range issues {
+				if is.DrawNo == tc.no && strings.Contains(is.Reason, tc.fragm) {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			t.Errorf("нет issue для №%d с «%s»: %+v", tc.no, tc.fragm, issues)
-		}
+			if !found {
+				t.Errorf("нет issue для №%d с «%s»: %+v", tc.no, tc.fragm, issues)
+			}
+		})
+	}
+}
+
+// Две ячейки с восемью числами в одной строке — неоднозначность:
+// issue вместо молчаливого «взять первую».
+func TestParseAmbiguousRow(t *testing.T) {
+	draws, issues, err := Parse(strings.NewReader(readFixture(t, "ambiguous.html")))
+	if err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if len(draws) != 0 {
+		t.Fatalf("draws = %+v, хотели пусто", draws)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("issues = %+v, хотели 1", issues)
+	}
+	if issues[0].DrawNo != 64 || !strings.Contains(issues[0].Reason, "неоднозначно") {
+		t.Fatalf("issue = %+v", issues[0])
 	}
 }
 
@@ -80,5 +103,54 @@ func TestParseStructuralError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "не найдены результаты") {
 		t.Fatalf("неожиданный текст ошибки: %v", err)
+	}
+}
+
+func TestExtractNumbers(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   string
+		want []int
+	}{
+		{"дата", "14 сент", []int{14}},
+		{"приз с запятой", "93,3 млн", []int{93, 3}},
+		{"юникод-тире", "1–2", []int{1, 2}},
+		{"неразрывный пробел", "7\u00a011", []int{7, 11}},
+		{"цифры в конце строки", "7 и 11", []int{7, 11}},
+		{"комбинация целиком", "19, 28, 24, 21, 10, 29, 05 и 18", []int{19, 28, 24, 21, 10, 29, 5, 18}},
+		// 20 цифр: Atoi сигнализирует о переполнении (ErrRange), ошибка
+		// игнорируется и возвращается насыщенное MaxInt — задокументированное
+		// поведение; в реальной строке такой артефакт отсекается validate.
+		{"переполнение Atoi", "99999999999999999999", []int{math.MaxInt}},
+		{"нет цифр", "архив", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := extractNumbers(tc.in); !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("extractNumbers(%q) = %v, хотели %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidate(t *testing.T) {
+	ok := []int{5, 10, 19, 21, 24, 28, 29}
+	for _, tc := range []struct {
+		name  string
+		main  []int
+		bonus int
+		want  string // "" — валидна
+	}{
+		{"валидна", ok, 18, ""},
+		{"число вне диапазона", []int{0, 10, 19, 21, 24, 28, 29}, 18, "число 0 вне диапазона 1–35"},
+		{"число больше 35", []int{5, 10, 19, 21, 24, 28, 36}, 18, "число 36 вне диапазона 1–35"},
+		{"повтор", []int{5, 5, 19, 21, 24, 28, 29}, 18, "число 5 повторяется"},
+		{"бонус вне диапазона", ok, 55, "бонусное число 55 вне диапазона 1–54"},
+		{"бонус ноль", ok, 0, "бонусное число 0 вне диапазона 1–54"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if msg := validate(tc.main, tc.bonus); msg != tc.want {
+				t.Fatalf("validate(%v, %d) = %q, хотели %q", tc.main, tc.bonus, msg, tc.want)
+			}
+		})
 	}
 }
