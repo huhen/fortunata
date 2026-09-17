@@ -8,6 +8,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"testing"
 	"time"
 
@@ -479,4 +480,53 @@ func TestGenerateUsesHistory(t *testing.T) {
 // drawStruct — розыгрыш с фиксированной комбинацией {1,2,3,4,5,6,7}+8.
 func drawStruct(no int64) store.Draw {
 	return store.Draw{DrawNo: no, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8}
+}
+
+func TestStats(t *testing.T) {
+	ts := newTestServer(t)
+	type freq struct {
+		N     int `json:"n"`
+		Count int `json:"count"`
+	}
+	var body struct {
+		Main  []freq `json:"main"`
+		Bonus []freq `json:"bonus"`
+	}
+	// Пустая база: доступ без авторизации, пустые списки.
+	resp := get(t, clientWithJar(), ts.URL+"/api/stats")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("пустая база: status = %d", resp.StatusCode)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if len(body.Main) != 0 || len(body.Bonus) != 0 {
+		t.Fatalf("пустая база: main = %v, bonus = %v", body.Main, body.Bonus)
+	}
+
+	// Сид: числа 1,2,3 — по два раза; бонус 8 — дважды.
+	c := loginClient(t, ts)
+	for _, d := range []map[string]any{
+		{"drawNo": 1, "numbers": []int{1, 2, 3, 4, 5, 6, 7}, "bonus": 8},
+		{"drawNo": 2, "numbers": []int{1, 2, 3, 8, 9, 10, 11}, "bonus": 8},
+	} {
+		r := post(t, c, ts.URL+"/api/draws", d)
+		r.Body.Close()
+	}
+
+	resp2 := get(t, clientWithJar(), ts.URL+"/api/stats")
+	defer resp2.Body.Close()
+	if err := json.NewDecoder(resp2.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	wantMain := []freq{
+		{N: 1, Count: 2}, {N: 2, Count: 2}, {N: 3, Count: 2},
+		{N: 4, Count: 1}, {N: 5, Count: 1}, {N: 6, Count: 1}, {N: 7, Count: 1},
+		{N: 8, Count: 1}, {N: 9, Count: 1}, {N: 10, Count: 1}, {N: 11, Count: 1},
+	}
+	wantBonus := []freq{{N: 8, Count: 2}}
+	if !reflect.DeepEqual(body.Main, wantMain) || !reflect.DeepEqual(body.Bonus, wantBonus) {
+		t.Fatalf("main = %v, bonus = %v", body.Main, body.Bonus)
+	}
 }

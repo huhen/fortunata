@@ -56,6 +56,7 @@ func (h *Handler) register(mux *http.ServeMux) {
 	mux.Handle("POST /api/logout", requireJSON(h.logout))
 	mux.HandleFunc("GET /api/me", h.me)
 	mux.HandleFunc("GET /api/draws", h.listDraws)
+	mux.HandleFunc("GET /api/stats", h.stats)
 	mux.Handle("POST /api/draws", h.session(requireJSON(h.createDraw)))
 	mux.Handle("PUT /api/draws/{no}", h.session(requireJSON(h.updateDraw)))
 	mux.Handle("DELETE /api/draws/{no}", h.session(h.deleteDraw))
