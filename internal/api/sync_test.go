@@ -349,12 +349,20 @@ func TestSyncStoreClosed(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
 		t.Fatal(err)
 	}
-	if res.Added != 0 || len(res.Issues) != 2 { // в archive.html два розыгрыша
+	if res.Added != 0 || len(res.Issues) != 2 {
 		t.Fatalf("res = %+v", res)
 	}
+	wantNo := map[int64]bool{63: true, 64: true} // в archive.html два розыгрыша
 	for _, is := range res.Issues {
 		if is.Reason != "ошибка сохранения" {
 			t.Fatalf("issue = %+v", is)
 		}
+		if !wantNo[is.DrawNo] {
+			t.Fatalf("неожиданный номер розыгрыша в issue: %d", is.DrawNo)
+		}
+		delete(wantNo, is.DrawNo)
+	}
+	if len(wantNo) != 0 {
+		t.Fatalf("не все розыгрыши попали в issues, не хватает: %v", wantNo)
 	}
 }
