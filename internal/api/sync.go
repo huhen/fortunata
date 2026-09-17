@@ -8,16 +8,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"time"
 
 	"fortunata/internal/store"
 	"fortunata/internal/timelottery"
 )
-
-// archiveClient — клиент скачивания архива; таймаут должен оставаться
-// меньше WriteTimeout HTTP-сервера (15 с в cmd/server/main.go), иначе
-// вставки закоммитятся, а ответ до клиента не дойдёт.
-var archiveClient = &http.Client{Timeout: 10 * time.Second}
 
 // maxArchiveBytes — лимит размера страницы архива (реальная ~0,2 МБ).
 const maxArchiveBytes = 5 << 20
@@ -35,7 +29,7 @@ type syncResult struct {
 }
 
 func (h *Handler) syncDraws(w http.ResponseWriter, r *http.Request) {
-	draws, issues, err := fetchArchive(h.archiveURL)
+	draws, issues, err := h.fetchArchive(h.archiveURL)
 	if err != nil {
 		errorJSON(w, http.StatusBadGateway, err.Error())
 		return
@@ -60,8 +54,8 @@ func (h *Handler) syncDraws(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchArchive скачивает страницу архива и разбирает её.
-func fetchArchive(url string) ([]timelottery.Draw, []timelottery.Issue, error) {
-	resp, err := archiveClient.Get(url)
+func (h *Handler) fetchArchive(url string) ([]timelottery.Draw, []timelottery.Issue, error) {
+	resp, err := h.archiveClient.Get(url)
 	if err != nil {
 		slog.Warn("sync: загрузка архива", "url", url, "err", err)
 		return nil, nil, errors.New("не удалось загрузить страницу архива")
