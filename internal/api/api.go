@@ -29,7 +29,7 @@ type Handler struct {
 
 // newHandler собирает Handler; маршруты регистрирует register.
 // Таймаут клиента должен оставаться меньше WriteTimeout HTTP-сервера
-// (15 с в cmd/server/main.go), иначе вставки закоммитятся, а ответ
+// (130 с в cmd/server/main.go), иначе вставки закоммитятся, а ответ
 // до клиента не дойдёт.
 func newHandler(st *store.Store, password, secret string, cookieSecure bool, archiveURL string, llmClient *llm.Client) *Handler {
 	if archiveURL == "" {

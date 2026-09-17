@@ -22,6 +22,9 @@ docker compose -f compose.local.yaml up --build -d   # Docker без Traefik (п
 - `internal/store/` — SQLite (`modernc.org/sqlite`, чистый Go, без cgo), WAL-режим
 - `internal/generate/` — частотно-взвешенная генерация (вес = появления + 1),
   RNG-интерфейс для детерминированных тестов
+- `internal/llm/` — клиент llama.cpp (OpenAI-совместимый) для AI-генерации:
+  англоязычный промт, парсинг ответа (`<think>`, заборы), валидация и до 2
+  доборов невалидных комбинаций
 - `internal/timelottery/` — парсер страницы архива timelottery.ru для
   `POST /api/sync` (ищет строки данных по содержимому, устойчив к редизайну)
 - `internal/version/` — версия сборки (`dev` по умолчанию), прошивается
@@ -32,7 +35,8 @@ docker compose -f compose.local.yaml up --build -d   # Docker без Traefik (п
 
 `ADMIN_PASSWORD` обязателен (без него сервер не стартует). Остальные: `ADDR`
 (`:8080`), `DB_PATH` (`fortunata.db`), `SESSION_SECRET` (пусто = случайный),
-`COOKIE_SECURE` (`false`; за HTTPS — `true`).
+`COOKIE_SECURE` (`false`; за HTTPS — `true`), `LLM_BASE_URL` + `LLM_MODEL`
+(задаются вместе; пусто = AI-генерация выключена), `LLM_API_KEY` (опционален).
 
 ## Gotchas
 

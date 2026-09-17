@@ -88,6 +88,9 @@ Traefik должен иметь доступ к этой сети; роутер 
 | `ADMIN_PASSWORD` | Пароль редактирования (обязателен) | — |
 | `SESSION_SECRET` | Секрет подписи сессий; пусто — случайный | случайный |
 | `COOKIE_SECURE` | Флаг Secure у cookie (true за HTTPS) | `false` |
+| `LLM_BASE_URL` | База llama.cpp-сервера; задаётся вместе с `LLM_MODEL`, пусто — AI-генерация выключена | *(пусто)* |
+| `LLM_MODEL` | Имя модели на LLM-сервере | *(пусто)* |
+| `LLM_API_KEY` | Bearer-токен LLM-сервера | *(пусто)* |
 
 ## API
 
@@ -98,8 +101,9 @@ Traefik должен иметь доступ к этой сети; роутер 
 | GET | `/api/me` | публично | `{authenticated}` |
 | GET | `/api/draws` | публично | список розыгрышей |
 | GET | `/api/stats` | публично | частоты шаров: `{main: [...], bonus: [...]}` |
-| GET | `/api/version` | публично | версия сборки: `{version}` (без прошивки — `dev`) |
+| GET | `/api/version` | публично | версия сборки и флаг настроенности AI: `{version, ai}` (без прошивки — `dev`) |
 | POST | `/api/draws` | сессия | создать `{drawNo, numbers[7], bonus}` |
 | PUT | `/api/draws/{no}` | сессия | заменить комбинацию |
 | DELETE | `/api/draws/{no}` | сессия | удалить |
 | POST | `/api/generate` | публично | `{count}` → `{tickets}` |
+| POST | `/api/generate/ai` | публично | N комбинаций от LLM (нужен настроенный LLM_*, максимум 20): `{tickets: [{numbers, bonus}]}` |
