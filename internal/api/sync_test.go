@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"fortunata/internal/store"
 )
@@ -24,16 +25,23 @@ func readArchiveFixture(t *testing.T) string {
 	return string(b)
 }
 
-// newSyncServer поднимает api, у которого «архив» отдаёт handler.
-func newSyncServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+// newTestStore открывает in-memory стор; закрытие через t.Cleanup.
+func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
-	upstream := httptest.NewServer(handler)
-	t.Cleanup(upstream.Close)
 	st, err := store.Open(":memory:")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
+	return st
+}
+
+// newSyncServer поднимает api, у которого «архив» отдаёт handler.
+func newSyncServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	upstream := httptest.NewServer(handler)
+	t.Cleanup(upstream.Close)
+	st := newTestStore(t)
 	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, upstream.URL))
 	t.Cleanup(ts.Close)
 	return ts
@@ -227,5 +235,40 @@ func TestSyncUpstreamUnreachable(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("status = %d, хотим 502", resp.StatusCode)
+	}
+}
+
+// Таймаут скачивания архива: медленный апстрим при коротком клиенте → 502.
+// Возможен благодаря инъекции h.archiveClient (рефакторинг newHandler).
+// Сон апстрима (500 мс) на порядок больше таймаута клиента (100 мс) —
+// детерминированно; t.Cleanup дождётся сна, итого тест ~0,6 с.
+func TestSyncArchiveTimeout(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(500 * time.Millisecond)
+	}))
+	t.Cleanup(upstream.Close)
+
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL)
+	h.archiveClient = &http.Client{Timeout: 100 * time.Millisecond}
+	mux := http.NewServeMux()
+	h.register(mux)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	c := loginClient(t, ts)
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, хотим 502", resp.StatusCode)
+	}
+}
+
+// Инвариант из комментария newHandler: таймаут скачивания архива должен
+// оставаться меньше WriteTimeout HTTP-сервера, иначе вставки в базу
+// закоммитятся, а ответ до клиента не дойдёт.
+func TestSyncArchiveClientTimeoutBelowWriteTimeout(t *testing.T) {
+	const writeTimeout = 15 * time.Second // cmd/server/main.go
+	if got := newHandler(newTestStore(t), "p", "s", false, "").archiveClient.Timeout; got >= writeTimeout {
+		t.Fatalf("таймаут archiveClient = %v, должен быть меньше WriteTimeout %v", got, writeTimeout)
 	}
 }
