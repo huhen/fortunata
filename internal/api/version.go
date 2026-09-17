@@ -6,7 +6,8 @@ import (
 	"fortunata/internal/version"
 )
 
-// getVersion — публичная ручка с версией сборки для футера фронтенда.
+// getVersion — публичная ручка: версия сборки для футера и флаг
+// настроенности AI-генерации для главной страницы.
 func (h *Handler) getVersion(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"version": version.Version})
+	writeJSON(w, http.StatusOK, map[string]any{"version": version.Version, "ai": h.llm != nil})
 }

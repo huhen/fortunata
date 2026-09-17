@@ -20,11 +20,15 @@ func TestGetVersion(t *testing.T) {
 	}
 	var data struct {
 		Version string `json:"version"`
+		AI      bool   `json:"ai"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 		t.Fatalf("декодирование ответа: %v", err)
 	}
 	if data.Version != version.Version {
 		t.Fatalf("версия: получено %q, ожидается %q", data.Version, version.Version)
+	}
+	if data.AI {
+		t.Fatal("без LLM-конфига флаг ai должен быть false")
 	}
 }
