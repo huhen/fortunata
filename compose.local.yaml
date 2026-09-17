@@ -10,8 +10,8 @@ services:
       COOKIE_SECURE: "false"
       DB_PATH: /data/fortunata.db
       ADDR: ":8080"
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://192.168.1.128:18020}
-      LLM_MODEL: ${LLM_MODEL:-qwen3.8-27b}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
     volumes:
       - fortunata-local-data:/data
