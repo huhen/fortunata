@@ -24,6 +24,8 @@ docker compose -f compose.local.yaml up --build -d   # Docker без Traefik (п
   RNG-интерфейс для детерминированных тестов
 - `internal/timelottery/` — парсер страницы архива timelottery.ru для
   `POST /api/sync` (ищет строки данных по содержимому, устойчив к редизайну)
+- `internal/version/` — версия сборки (`dev` по умолчанию), прошивается
+  `-ldflags -X` в release.yml и Dockerfile, отдаётся `GET /api/version`
 - `web/` — статика, встраивается через `//go:embed` в `web/embed.go`
 
 ## Окружение
