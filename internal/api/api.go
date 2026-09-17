@@ -57,6 +57,7 @@ func (h *Handler) register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/me", h.me)
 	mux.HandleFunc("GET /api/draws", h.listDraws)
 	mux.HandleFunc("GET /api/stats", h.stats)
+	mux.HandleFunc("GET /api/version", h.getVersion)
 	mux.Handle("POST /api/draws", h.session(requireJSON(h.createDraw)))
 	mux.Handle("PUT /api/draws/{no}", h.session(requireJSON(h.updateDraw)))
 	mux.Handle("DELETE /api/draws/{no}", h.session(h.deleteDraw))

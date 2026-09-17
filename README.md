@@ -98,6 +98,7 @@ Traefik должен иметь доступ к этой сети; роутер 
 | GET | `/api/me` | публично | `{authenticated}` |
 | GET | `/api/draws` | публично | список розыгрышей |
 | GET | `/api/stats` | публично | частоты шаров: `{main: [...], bonus: [...]}` |
+| GET | `/api/version` | публично | версия сборки: `{version}` (без прошивки — `dev`) |
 | POST | `/api/draws` | сессия | создать `{drawNo, numbers[7], bonus}` |
 | PUT | `/api/draws/{no}` | сессия | заменить комбинацию |
 | DELETE | `/api/draws/{no}` | сессия | удалить |
