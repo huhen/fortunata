@@ -223,11 +223,7 @@ func TestSyncUpstreamUnreachable(t *testing.T) {
 	dead := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	deadURL := dead.URL
 	dead.Close()
-	st, err := store.Open(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
+	st := newTestStore(t)
 	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, deadURL))
 	t.Cleanup(ts.Close)
 	c := loginClient(t, ts)
