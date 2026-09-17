@@ -117,7 +117,7 @@ func Parse(r io.Reader) ([]Draw, []Issue, error)
 
 ## Тесты
 
-- `internal/timelottery/parse_test.go`, фикстура — вырезка реального HTML
+- `internal/timelottery/timelottery_test.go`, фикстура — вырезка реального HTML
   страницы: шапка таблицы, несколько строк данных (включая № 64:
   «19, 28, 24, 21, 10, 29, 05 и 18»), строки соседних таблиц, битая строка.
   Кейсы:
