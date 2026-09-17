@@ -16,6 +16,29 @@ import (
 // maxArchiveBytes — лимит размера страницы архива (реальная ~0,2 МБ).
 const maxArchiveBytes = 5 << 20
 
+// errArchiveTooBig — страница архива превысила лимит; после оборачивания
+// в html.Parse распознаётся через errors.Is.
+var errArchiveTooBig = errors.New("страница архива больше 5 МБ")
+
+// limitedReader читает не более n байт, дальше — errArchiveTooBig:
+// io.LimitReader тихо обрезал бы страницу, давая частичный парс с 200.
+type limitedReader struct {
+	r io.Reader
+	n int64 // сколько байтов осталось прочитать
+}
+
+func (l *limitedReader) Read(p []byte) (int, error) {
+	if l.n <= 0 {
+		return 0, errArchiveTooBig
+	}
+	if int64(len(p)) > l.n {
+		p = p[:l.n]
+	}
+	n, err := l.r.Read(p)
+	l.n -= int64(n)
+	return n, err
+}
+
 type syncIssue struct {
 	DrawNo int64  `json:"drawNo"`
 	Reason string `json:"reason"`
@@ -64,5 +87,12 @@ func (h *Handler) fetchArchive(url string) ([]timelottery.Draw, []timelottery.Is
 	if resp.StatusCode != http.StatusOK {
 		return nil, nil, fmt.Errorf("сервер архива ответил %d", resp.StatusCode)
 	}
-	return timelottery.Parse(io.LimitReader(resp.Body, maxArchiveBytes))
+	draws, issues, err := timelottery.Parse(&limitedReader{r: resp.Body, n: maxArchiveBytes})
+	if err != nil {
+		if errors.Is(err, errArchiveTooBig) {
+			return nil, nil, errArchiveTooBig // без префикса «разбор html:»
+		}
+		return nil, nil, err
+	}
+	return draws, issues, nil
 }

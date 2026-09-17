@@ -272,3 +272,32 @@ func TestSyncArchiveClientTimeoutBelowWriteTimeout(t *testing.T) {
 		t.Fatalf("таймаут archiveClient = %v, должен быть меньше WriteTimeout %v", got, writeTimeout)
 	}
 }
+
+// Страница архива больше лимита — 502, а не тихая обрезка с частичным
+// парсом: после первых 5 МБ есть ещё валидная строка, LimitReader её бы
+// потерял и вернул 200 с added=1.
+func TestSyncOversizeArchive(t *testing.T) {
+	page := "<html><body><table>" +
+		"<tr><td>64</td><td>14 сент</td><td><strong>19, 28, 24, 21, 10, 29, 05 и 18</strong></td><td>10 млн</td></tr>" +
+		strings.Repeat("<!-- отступ -->", maxArchiveBytes/15+1) +
+		"<tr><td>63</td><td>13 сент</td><td><strong>11, 12, 16, 28, 29, 31, 35 и 14</strong></td><td>9 млн</td></tr>" +
+		"</table></body></html>"
+	ts := newSyncServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(page))
+	})
+	c := loginClient(t, ts)
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, хотим 502", resp.StatusCode)
+	}
+	var body struct {
+		Error string `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(body.Error, "больше 5 МБ") {
+		t.Fatalf("error = %q", body.Error)
+	}
+}
