@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // respondLLM пишет ответ OpenAI-формата с фиксированным content.
@@ -184,5 +185,39 @@ func TestProposeGivesUpAfterMaxRefills(t *testing.T) {
 	}
 	if calls != maxRefills+1 {
 		t.Fatalf("calls = %d, хотим %d (запрос + доборы)", calls, maxRefills+1)
+	}
+}
+
+func TestProposePartialOnBudgetExpiry(t *testing.T) {
+	calls := 0
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if calls == 1 {
+			time.Sleep(150 * time.Millisecond)
+			respondLLM(w, `{"combinations":[{"numbers":[1,2,3,4,5,6,7],"bonus":8}]}`)
+			return
+		}
+		time.Sleep(2 * time.Second) // бюджет кончится раньше
+		respondLLM(w, `{"combinations":[{"numbers":[9,10,11,12,13,14,15],"bonus":9}]}`)
+	})
+	c.budget = 400 * time.Millisecond
+	got, err := c.Propose(context.Background(), 2, make([]int, 35), make([]int, 54), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Bonus != 8 {
+		t.Fatalf("билеты = %+v, хотим 1 частичный", got)
+	}
+}
+
+func TestProposeBudgetExpiryNoTickets(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(2 * time.Second)
+		respondLLM(w, `{"combinations":[{"numbers":[1,2,3,4,5,6,7],"bonus":8}]}`)
+	})
+	c.budget = 100 * time.Millisecond
+	_, err := c.Propose(context.Background(), 1, make([]int, 35), make([]int, 54), 0)
+	if !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("err = %v, хотим ErrUnavailable (0 билетов — ошибка)", err)
 	}
 }

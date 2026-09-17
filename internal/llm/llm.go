@@ -22,6 +22,10 @@ const (
 	// WriteTimeout HTTP-сервера в cmd/server/main.go, иначе ответ
 	// AI-генерации закоммитится, а до клиента не дойдёт.
 	requestTimeout = 120 * time.Second
+	// proposeBudget — суммарный лимит Propose (запрос + доборы); должен
+	// оставаться меньше WriteTimeout HTTP-сервера (130 с в
+	// cmd/server/main.go), иначе частичный ответ не дойдёт до клиента.
+	proposeBudget = 125 * time.Second
 	// maxTokens — запас на <think>-рассуждения qwen3 и 20 комбинаций.
 	maxTokens = 4096
 	// temperature — умеренная случайность предложений.
@@ -38,6 +42,7 @@ type Client struct {
 	baseURL string // без пути, напр. http://192.168.1.128:18020
 	model   string
 	apiKey  string
+	budget  time.Duration // суммарный бюджет Propose; переопределяется в тестах
 	hc      *http.Client
 }
 
@@ -50,6 +55,7 @@ func NewClient(baseURL, model, apiKey string, hc *http.Client) *Client {
 		baseURL: strings.TrimSuffix(baseURL, "/"),
 		model:   model,
 		apiKey:  apiKey,
+		budget:  proposeBudget,
 		hc:      hc,
 	}
 }
@@ -115,19 +121,30 @@ func (c *Client) Complete(ctx context.Context, userPrompt string) (string, error
 
 // Propose запрашивает count валидных комбинаций; если валидных меньше,
 // добирает недостающее повторными запросами (максимум maxRefills) с
-// exclude-списком уже найденных. Сетевые ошибки пробрасываются сразу.
-// Может вернуть меньше count (вплоть до нуля) — решение об ошибке
-// принимает вызывающий.
+// exclude-списком уже найденных. count должен быть >= 0; диапазон 1..20
+// проверяет вызывающий. Сетевые ошибки пробрасываются сразу, но при
+// истечении суммарного бюджета (proposeBudget) возвращается частичный
+// набор без ошибки (а при нуле найденных — ошибка). Может вернуть меньше
+// count (вплоть до нуля) — решение об ошибке принимает вызывающий.
 func (c *Client) Propose(ctx context.Context, count int, main, bonus []int, totalDraws int) ([]generate.Ticket, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.budget)
+	defer cancel()
 	seen := make(map[string]struct{}, count)
 	tickets := make([]generate.Ticket, 0, count)
 	for attempt := 0; len(tickets) < count && attempt <= maxRefills; attempt++ {
+		// Бюджет исчерпан — отдаём что успели набрать (частичный результат).
+		if ctx.Err() != nil {
+			return tickets, nil
+		}
 		var exclude []generate.Ticket
 		if attempt > 0 {
 			exclude = tickets
 		}
 		content, err := c.Complete(ctx, ComposePrompt(count-len(tickets), main, bonus, totalDraws, exclude))
 		if err != nil {
+			if ctx.Err() != nil && len(tickets) > 0 {
+				return tickets, nil
+			}
 			return nil, err
 		}
 		for _, t := range ExtractTickets(content) {
