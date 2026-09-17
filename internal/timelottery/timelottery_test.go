@@ -73,6 +73,24 @@ func TestParseIssues(t *testing.T) {
 	}
 }
 
+// Две ячейки с восемью числами в одной строке — неоднозначность:
+// issue вместо молчаливого «взять первую».
+func TestParseAmbiguousRow(t *testing.T) {
+	draws, issues, err := Parse(strings.NewReader(readFixture(t, "ambiguous.html")))
+	if err != nil {
+		t.Fatalf("неожиданная ошибка: %v", err)
+	}
+	if len(draws) != 0 {
+		t.Fatalf("draws = %+v, хотели пусто", draws)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("issues = %+v, хотели 1", issues)
+	}
+	if issues[0].DrawNo != 64 || !strings.Contains(issues[0].Reason, "неоднозначно") {
+		t.Fatalf("issue = %+v", issues[0])
+	}
+}
+
 func TestParseStructuralError(t *testing.T) {
 	draws, issues, err := Parse(strings.NewReader("<html><body><p>Пусто</p></body></html>"))
 	if err == nil {
