@@ -92,7 +92,7 @@ func TestGenerateBatchDistinct(t *testing.T) {
 	}
 	unique := map[string]bool{}
 	for _, tk := range tickets {
-		unique[ticketKey(tk)] = true
+		unique[Key(tk)] = true
 	}
 	if len(unique) != 10 {
 		t.Fatalf("уникальных билетов %d из 10", len(unique))
@@ -147,5 +147,12 @@ func TestGenerateBatchSingle(t *testing.T) {
 	tickets := GenerateBatch(make([]int, 35), make([]int, 54), 1, &fakeRng{})
 	if len(tickets) != 1 {
 		t.Fatalf("len = %d", len(tickets))
+	}
+}
+
+func TestKey(t *testing.T) {
+	k := Key(Ticket{Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8})
+	if k != "[1 2 3 4 5 6 7]+8" {
+		t.Fatalf("Key = %q", k)
 	}
 }
