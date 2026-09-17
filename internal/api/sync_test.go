@@ -240,11 +240,15 @@ func TestSyncUpstreamUnreachable(t *testing.T) {
 
 // Таймаут скачивания архива: медленный апстрим при коротком клиенте → 502.
 // Возможен благодаря инъекции h.archiveClient (рефакторинг newHandler).
-// Сон апстрима (500 мс) на порядок больше таймаута клиента (100 мс) —
-// детерминированно; t.Cleanup дождётся сна, итого тест ~0,6 с.
+// Ожидание апстрима (2 с) в 20 раз больше таймаута клиента (100 мс) —
+// детерминированно. При дисконнекте клиента httptest-сервер отменяет
+// контекст запроса, select в хендлере завершается, итого тест ~0,1 с.
 func TestSyncArchiveTimeout(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-time.After(2 * time.Second):
+		case <-r.Context().Done():
+		}
 	}))
 	t.Cleanup(upstream.Close)
 
@@ -267,7 +271,7 @@ func TestSyncArchiveTimeout(t *testing.T) {
 // оставаться меньше WriteTimeout HTTP-сервера, иначе вставки в базу
 // закоммитятся, а ответ до клиента не дойдёт.
 func TestSyncArchiveClientTimeoutBelowWriteTimeout(t *testing.T) {
-	const writeTimeout = 15 * time.Second // cmd/server/main.go
+	const writeTimeout = 15 * time.Second // WriteTimeout в cmd/server/main.go
 	if got := newHandler(newTestStore(t), "p", "s", false, "").archiveClient.Timeout; got >= writeTimeout {
 		t.Fatalf("таймаут archiveClient = %v, должен быть меньше WriteTimeout %v", got, writeTimeout)
 	}
