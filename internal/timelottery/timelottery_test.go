@@ -2,6 +2,7 @@
 package timelottery
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"reflect"
@@ -62,15 +63,18 @@ func TestParseIssues(t *testing.T) {
 		{60, "бонусное число 55 вне диапазона"},
 		{59, "0 вне диапазона"},
 	} {
-		found := false
-		for _, is := range issues {
-			if is.DrawNo == tc.no && strings.Contains(is.Reason, tc.fragm) {
-				found = true
+		t.Run(fmt.Sprintf("№%d", tc.no), func(t *testing.T) {
+			found := false
+			for _, is := range issues {
+				if is.DrawNo == tc.no && strings.Contains(is.Reason, tc.fragm) {
+					found = true
+					break
+				}
 			}
-		}
-		if !found {
-			t.Errorf("нет issue для №%d с «%s»: %+v", tc.no, tc.fragm, issues)
-		}
+			if !found {
+				t.Errorf("нет issue для №%d с «%s»: %+v", tc.no, tc.fragm, issues)
+			}
+		})
 	}
 }
 
