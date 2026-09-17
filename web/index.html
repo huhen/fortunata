@@ -21,8 +21,10 @@
       <div class="card">
         <label for="count">Сколько билетов сгенерировать</label>
         <input id="count" type="number" inputmode="numeric" min="1" max="100" value="10">
-        <button id="btn-generate" class="btn-primary">Сгенерировать</button>
-        <button id="btn-generate-ai" class="btn-primary" hidden>AI генерация</button>
+        <div class="form-actions">
+          <button id="btn-generate" class="btn-primary">Сгенерировать</button>
+          <button id="btn-generate-ai" class="btn-primary" hidden>AI генерация</button>
+        </div>
         <p id="gen-error" class="error" hidden></p>
       </div>
       <div id="tickets"></div>
