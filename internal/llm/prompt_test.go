@@ -19,6 +19,7 @@ func TestComposePromptContainsRulesAndStats(t *testing.T) {
 		"Propose 10 distinct combinations",
 		"1:5", "8:2",
 		"7 distinct main numbers", "ascending", "bonus number from 1 to 54",
+		"soft guide",
 	} {
 		if !strings.Contains(p, want) {
 			t.Fatalf("в промте нет %q\nпромт:\n%s", want, p)
@@ -29,7 +30,7 @@ func TestComposePromptContainsRulesAndStats(t *testing.T) {
 func TestComposePromptExcludeList(t *testing.T) {
 	exclude := []generate.Ticket{{Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8}}
 	p := ComposePrompt(3, make([]int, 35), make([]int, 54), 1, exclude)
-	for _, want := range []string{"do not repeat", "[1 2 3 4 5 6 7] bonus 8", "Propose 3 distinct"} {
+	for _, want := range []string{"do not repeat", `{"numbers":[1,2,3,4,5,6,7],"bonus":8}`, "Propose 3 distinct"} {
 		if !strings.Contains(p, want) {
 			t.Fatalf("в промте нет %q\nпромт:\n%s", want, p)
 		}
