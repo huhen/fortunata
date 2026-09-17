@@ -195,3 +195,81 @@ func TestOpenFileRoundtrip(t *testing.T) {
 		t.Fatalf("после переоткрытия: %+v", draws)
 	}
 }
+
+func TestMainFrequency(t *testing.T) {
+	st := openTest(t)
+	if err := st.Create(Draw{DrawNo: 1, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Create(Draw{DrawNo: 2, Numbers: []int{1, 2, 3, 8, 9, 10, 11}, Bonus: 8}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := st.MainFrequency()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 1,2,3 — по два раза; остальные по одному; при равенстве — номер ASC.
+	// Числа 12–35 не выпадали и в результат попасть не должны.
+	// Бонус 8 совпадает с основным шаром 8 намеренно: просочки бонусной
+	// колонки в UNION подняли бы счётчик 8 до 3 и уронили бы тест.
+	want := []Freq{
+		{N: 1, Count: 2}, {N: 2, Count: 2}, {N: 3, Count: 2},
+		{N: 4, Count: 1}, {N: 5, Count: 1}, {N: 6, Count: 1}, {N: 7, Count: 1},
+		{N: 8, Count: 1}, {N: 9, Count: 1}, {N: 10, Count: 1}, {N: 11, Count: 1},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, хотим %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("[%d] = %+v, хотим %+v (порядок: count DESC, затем номер ASC)", i, got[i], want[i])
+		}
+	}
+}
+
+func TestFrequencyEmptyBase(t *testing.T) {
+	st := openTest(t)
+	main, err := st.MainFrequency()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if main == nil || len(main) != 0 {
+		t.Fatalf("пустая база: main = %v, хотим непустой пустой срез", main)
+	}
+	bonus, err := st.BonusFrequency()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bonus == nil || len(bonus) != 0 {
+		t.Fatalf("пустая база: bonus = %v, хотим непустой пустой срез", bonus)
+	}
+}
+
+func TestBonusFrequency(t *testing.T) {
+	st := openTest(t)
+	for _, d := range []Draw{
+		{DrawNo: 1, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8},
+		{DrawNo: 2, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 54},
+		{DrawNo: 3, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 8},
+		{DrawNo: 4, Numbers: []int{1, 2, 3, 4, 5, 6, 7}, Bonus: 1},
+	} {
+		if err := st.Create(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := st.BonusFrequency()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 8 первый по count DESC; при равном count=1 tie-break номер ASC
+	// ставит 1 перед 54 — без него кейс был бы зелёным на bonus DESC.
+	want := []Freq{{N: 8, Count: 2}, {N: 1, Count: 1}, {N: 54, Count: 1}}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, хотим %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("[%d] = %+v, хотим %+v", i, got[i], want[i])
+		}
+	}
+}
