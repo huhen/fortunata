@@ -316,3 +316,45 @@ func TestSyncOversizeArchive(t *testing.T) {
 		t.Fatalf("в базе есть розыгрыши: %d, хотели 0", len(list.Draws))
 	}
 }
+
+// Ветка ошибки БД в syncDraws: закрытый стор даёт issues «ошибка сохранения»
+// с 200. Логин в БД не ходит, поэтому сессию открываем до Close.
+func TestSyncStoreClosed(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(readArchiveFixture(t)))
+	}))
+	t.Cleanup(upstream.Close)
+
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL)
+	mux := http.NewServeMux()
+	h.register(mux)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	c := loginClient(t, ts)
+	h.st.Close() // провоцируем ошибку вставки
+
+	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, хотим 200", resp.StatusCode)
+	}
+	var res struct {
+		Added  int `json:"added"`
+		Issues []struct {
+			DrawNo int64  `json:"drawNo"`
+			Reason string `json:"reason"`
+		} `json:"issues"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Added != 0 || len(res.Issues) != 2 { // в archive.html два розыгрыша
+		t.Fatalf("res = %+v", res)
+	}
+	for _, is := range res.Issues {
+		if is.Reason != "ошибка сохранения" {
+			t.Fatalf("issue = %+v", is)
+		}
+	}
+}
