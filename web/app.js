@@ -26,6 +26,7 @@ const genError = document.getElementById('gen-error');
 const ticketsBox = document.getElementById('tickets');
 const countInput = document.getElementById('count');
 const btnAI = document.getElementById('btn-generate-ai');
+const aiLabel = btnAI.textContent;
 
 // renderTickets рисует пачку билетов в #tickets (общий для обеих кнопок).
 function renderTickets(tickets) {
@@ -68,7 +69,7 @@ btnAI.addEventListener('click', async () => {
     showGenError(e);
   } finally {
     btnAI.disabled = false;
-    btnAI.textContent = 'AI генерация';
+    btnAI.textContent = aiLabel;
     countInput.disabled = false;
   }
 });
