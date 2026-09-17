@@ -84,7 +84,7 @@ func main() {
 	}
 	defer st.Close()
 
-	mux := api.New(st, cfg.Password, cfg.Secret, cfg.CookieSecure, "")
+	mux := api.New(st, cfg.Password, cfg.Secret, cfg.CookieSecure, "", nil)
 
 	// Статика: / — index.html, /admin — админка, остальное — файлы из web/.
 	mux.Handle("GET /", http.FileServerFS(web.Files))
