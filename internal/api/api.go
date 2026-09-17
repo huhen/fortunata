@@ -67,6 +67,7 @@ func (h *Handler) register(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/draws/{no}", h.session(h.deleteDraw))
 	mux.Handle("POST /api/sync", h.session(requireJSON(h.syncDraws)))
 	mux.Handle("POST /api/generate", requireJSON(h.generate))
+	mux.Handle("POST /api/generate/ai", requireJSON(h.generateAI))
 }
 
 // requireJSON защищает мутации: CSRF-запрос из формы со стороннего сайта
