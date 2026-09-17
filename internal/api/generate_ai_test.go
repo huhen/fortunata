@@ -35,6 +35,25 @@ func newAIServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	return ts
 }
 
+func TestGenerateAIBusy(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("LLM не должен вызываться, когда слот занят")
+	}))
+	t.Cleanup(upstream.Close)
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, "",
+		llm.NewClient(upstream.URL, "test-model", "", nil))
+	h.aiSlots <- struct{}{} // слот занят
+	mux := http.NewServeMux()
+	h.register(mux)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+	resp := post(t, clientWithJar(), ts.URL+"/api/generate/ai", map[string]any{"count": 1})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, хотим 503", resp.StatusCode)
+	}
+}
+
 func TestGenerateAIHappyPath(t *testing.T) {
 	// Публичный доступ: клиент без логина.
 	calls := 0
@@ -70,6 +89,18 @@ func TestGenerateAINotConfigured(t *testing.T) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, хотим 503", resp.StatusCode)
+	}
+}
+
+func TestGenerateAIEmptyArchive(t *testing.T) {
+	// Пустой архив — валидный режим: нулевые частоты, totalDraws=0.
+	ts := newAIServer(t, func(w http.ResponseWriter, r *http.Request) {
+		respondLLM(w, `{"combinations":[{"numbers":[3,7,12,19,25,31,34],"bonus":8}]}`)
+	})
+	resp := post(t, clientWithJar(), ts.URL+"/api/generate/ai", map[string]any{"count": 1})
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("пустая база: status = %d, хотим 200", resp.StatusCode)
 	}
 }
 

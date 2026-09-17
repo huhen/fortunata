@@ -18,6 +18,13 @@ func (h *Handler) generateAI(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, http.StatusServiceUnavailable, "AI генерация не настроена")
 		return
 	}
+	select {
+	case h.aiSlots <- struct{}{}:
+		defer func() { <-h.aiSlots }()
+	default:
+		errorJSON(w, http.StatusServiceUnavailable, "AI генерация занята, попробуйте позже")
+		return
+	}
 	var req struct {
 		Count int `json:"count"`
 	}
@@ -41,6 +48,7 @@ func (h *Handler) generateAI(w http.ResponseWriter, r *http.Request) {
 	tickets, err := h.llm.Propose(r.Context(), req.Count, mainFreq, bonusFreq, len(draws))
 	if err != nil {
 		if errors.Is(err, llm.ErrUnavailable) {
+			slog.Warn("generate-ai: LLM недоступен", "err", err)
 			errorJSON(w, http.StatusBadGateway, "LLM-сервер недоступен")
 			return
 		}
@@ -52,7 +60,7 @@ func (h *Handler) generateAI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(tickets) < req.Count {
-		slog.Warn("generate-ai: недобор комбинаций", "запрошено", req.Count, "получено", len(tickets))
+		slog.Warn("generate-ai: недобор комбинаций", "requested", req.Count, "got", len(tickets))
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"tickets": tickets})
 }

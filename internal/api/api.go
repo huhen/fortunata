@@ -21,9 +21,10 @@ type Handler struct {
 	st            *store.Store
 	auth          *auth.Manager
 	cookieSecure  bool
-	archiveURL    string       // источник синхронизации; переопределяется в тестах
-	archiveClient *http.Client // клиент скачивания архива; подменяется в тестах
-	llm           *llm.Client  // nil — AI-генерация не настроена
+	archiveURL    string        // источник синхронизации; переопределяется в тестах
+	archiveClient *http.Client  // клиент скачивания архива; подменяется в тестах
+	llm           *llm.Client   // nil — AI-генерация не настроена
+	aiSlots       chan struct{} // слот параллельного AI-запроса; ёмкость 1 — домашний LLM обрабатывает по одному
 }
 
 // newHandler собирает Handler; маршруты регистрирует register.
@@ -41,6 +42,7 @@ func newHandler(st *store.Store, password, secret string, cookieSecure bool, arc
 		archiveURL:    archiveURL,
 		archiveClient: &http.Client{Timeout: 10 * time.Second},
 		llm:           llmClient,
+		aiSlots:       make(chan struct{}, 1),
 	}
 }
 
