@@ -32,3 +32,24 @@ func TestGetVersion(t *testing.T) {
 		t.Fatal("без LLM-конфига флаг ai должен быть false")
 	}
 }
+
+// TestGetVersionAIEnabled: при настроенном LLM флаг ai = true.
+func TestGetVersionAIEnabled(t *testing.T) {
+	ts := newAIServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("LLM не должен вызываться из /api/version")
+	})
+	resp := get(t, clientWithJar(), ts.URL+"/api/version")
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("статус: получено %d, ожидается 200", resp.StatusCode)
+	}
+	var data struct {
+		AI bool `json:"ai"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		t.Fatalf("декодирование ответа: %v", err)
+	}
+	if !data.AI {
+		t.Fatal("с LLM-клиентом флаг ai должен быть true")
+	}
+}
