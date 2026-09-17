@@ -148,8 +148,34 @@ input:disabled { opacity: 0.55; }
 .error { color: var(--danger); font-size: 0.95rem; }
 .hint { color: var(--muted); font-size: 0.9rem; }
 .hint a { color: var(--link); }
-footer { text-align: center; padding: 16px; }
-footer a { color: var(--muted); }
+a.btn-secondary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+.back-link { text-align: center; padding: 0 16px; }
+.back-link a { color: var(--muted); }
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 18px;
+  padding: 16px;
+  font-size: 0.9rem;
+}
+.site-footer a,
+.site-footer button { color: var(--muted); }
+.site-footer button {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
 .stat-title { font-size: 1rem; font-weight: 700; margin: 0 0 10px; }
 .stat-list { display: flex; flex-wrap: wrap; gap: 10px 14px; }
 .stat-item { display: inline-flex; align-items: center; gap: 4px; }

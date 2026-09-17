@@ -28,6 +28,7 @@
     </section>
 
     <section id="tab-archive" class="panel" role="tabpanel">
+      <a class="btn-secondary" href="/admin">Редактировать розыгрыши</a>
       <div id="draws-list"></div>
     </section>
 
@@ -36,7 +37,12 @@
     </section>
   </main>
 
-  <footer><a href="/admin">Редактировать розыгрыши</a></footer>
+  <footer class="site-footer">
+    <span id="app-version" hidden></span>
+    <a href="https://github.com/huhen/fortunata" target="_blank" rel="noopener">GitHub</a>
+    <button id="btn-top" type="button">↑ Наверх</button>
+  </footer>
   <script type="module" src="/app.js"></script>
+  <script type="module" src="/footer.js"></script>
 </body>
 </html>
