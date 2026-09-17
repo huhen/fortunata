@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"fortunata/internal/api"
+	"fortunata/internal/llm"
 	"fortunata/internal/store"
 	"fortunata/web"
 )
@@ -28,6 +29,10 @@ type Config struct {
 	SecretRandom bool   // true, если SECRET сгенерирован при старте
 	CookieSecure bool   // COOKIE_SECURE, по умолчанию false (за Traefik ставят true)
 	DBPath       string // DB_PATH, по умолчанию "fortunata.db"
+
+	LLMBaseURL string // LLM_BASE_URL; задаются с LLMModel вместе, пусто = AI выключена
+	LLMModel   string // LLM_MODEL
+	LLMAPIKey  string // LLM_API_KEY, опционален
 }
 
 func loadConfig(getenv func(string) string) (Config, error) {
@@ -63,6 +68,12 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("COOKIE_SECURE: %w", err)
 	}
 	cfg.CookieSecure = b
+	cfg.LLMBaseURL = getenv("LLM_BASE_URL")
+	cfg.LLMModel = getenv("LLM_MODEL")
+	cfg.LLMAPIKey = getenv("LLM_API_KEY")
+	if (cfg.LLMBaseURL == "") != (cfg.LLMModel == "") {
+		return Config{}, errors.New("LLM_BASE_URL и LLM_MODEL задаются вместе")
+	}
 	return cfg, nil
 }
 
@@ -84,7 +95,14 @@ func main() {
 	}
 	defer st.Close()
 
-	mux := api.New(st, cfg.Password, cfg.Secret, cfg.CookieSecure, "", nil)
+	// LLM-клиент для AI-генерации; nil — фича выключена.
+	var llmClient *llm.Client
+	if cfg.LLMBaseURL != "" {
+		llmClient = llm.NewClient(cfg.LLMBaseURL, cfg.LLMModel, cfg.LLMAPIKey, nil)
+		logger.Info("AI-генерация включена", "url", cfg.LLMBaseURL, "model", cfg.LLMModel)
+	}
+
+	mux := api.New(st, cfg.Password, cfg.Secret, cfg.CookieSecure, "", llmClient)
 
 	// Статика: / — index.html, /admin — админка, остальное — файлы из web/.
 	mux.Handle("GET /", http.FileServerFS(web.Files))
@@ -103,8 +121,10 @@ func main() {
 		Handler:           securityHeaders(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
+		// WriteTimeout должен вмещать запрос к LLM (120 с в internal/llm),
+		// иначе ответ AI-генерации умрёт при записи.
+		WriteTimeout: 130 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
