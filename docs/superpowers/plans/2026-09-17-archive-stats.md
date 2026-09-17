@@ -18,13 +18,13 @@
 - Modify: `internal/store/store.go`
 - Test: `internal/store/store_test.go`
 
-- [ ] **Step 1: Создать ветку**
+- [x] **Step 1: Создать ветку**
 
 ```bash
 git checkout -b feat/archive-stats
 ```
 
-- [ ] **Step 2: Написать падающий тест**
+- [x] **Step 2: Написать падающий тест**
 
 Добавить в конец `internal/store/store_test.go`:
 
@@ -70,12 +70,12 @@ func TestFrequencyEmptyBase(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Убедиться, что тест падает**
+- [x] **Step 3: Убедиться, что тест падает**
 
 Run: `go test ./internal/store/ -run 'TestMainFrequency|TestFrequencyEmptyBase' -v`
 Expected: FAIL — сборка не проходит: `undefined: Freq` / `st.MainFrequency undefined`
 
-- [ ] **Step 4: Реализовать `Freq` и `MainFrequency`**
+- [x] **Step 4: Реализовать `Freq` и `MainFrequency`**
 
 Добавить в конец `internal/store/store.go`:
 
@@ -125,12 +125,12 @@ func (s *Store) MainFrequency() ([]Freq, error) {
 }
 ```
 
-- [ ] **Step 5: Убедиться, что тесты проходят**
+- [x] **Step 5: Убедиться, что тесты проходят**
 
 Run: `go test ./internal/store/ -v`
 Expected: PASS, все тесты пакета зелёные
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/store/store.go internal/store/store_test.go
@@ -145,7 +145,7 @@ git commit -m "feat: частоты основных шаров MainFrequency в
 - Modify: `internal/store/store.go`
 - Test: `internal/store/store_test.go`
 
-- [ ] **Step 1: Написать падающий тест**
+- [x] **Step 1: Написать падающий тест**
 
 Добавить в конец `internal/store/store_test.go`:
 
@@ -177,12 +177,12 @@ func TestBonusFrequency(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Убедиться, что тест падает**
+- [x] **Step 2: Убедиться, что тест падает**
 
 Run: `go test ./internal/store/ -run TestBonusFrequency -v`
 Expected: FAIL — `st.BonusFrequency undefined`
 
-- [ ] **Step 3: Реализовать `BonusFrequency`**
+- [x] **Step 3: Реализовать `BonusFrequency`**
 
 Добавить в конец `internal/store/store.go`:
 
@@ -196,12 +196,12 @@ func (s *Store) BonusFrequency() ([]Freq, error) {
 }
 ```
 
-- [ ] **Step 4: Убедиться, что тесты проходят**
+- [x] **Step 4: Убедиться, что тесты проходят**
 
 Run: `go test ./internal/store/ -v`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/store/store.go internal/store/store_test.go
@@ -216,7 +216,7 @@ git commit -m "feat: частоты бонусных шаров BonusFrequency �
 - Create: `internal/api/stats.go`
 - Modify: `internal/api/api.go` (регистрация маршрута), `internal/api/api_test.go` (импорт `reflect` + тест)
 
-- [ ] **Step 1: Написать падающий тест**
+- [x] **Step 1: Написать падающий тест**
 
 В `internal/api/api_test.go` добавить `"reflect"` в список импортов:
 
@@ -290,12 +290,12 @@ func TestStats(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Убедиться, что тест падает**
+- [x] **Step 2: Убедиться, что тест падает**
 
 Run: `go test ./internal/api/ -run TestStats -v`
 Expected: FAIL — 404 вместо 200 (маршрута ещё нет)
 
-- [ ] **Step 3: Создать `internal/api/stats.go`**
+- [x] **Step 3: Создать `internal/api/stats.go`**
 
 ```go
 package api
@@ -318,7 +318,7 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Зарегистрировать маршрут**
+- [x] **Step 4: Зарегистрировать маршрут**
 
 В `internal/api/api.go` внутри `func (h *Handler) register(mux *http.ServeMux)` после строки
 `mux.HandleFunc("GET /api/draws", h.listDraws)` добавить:
@@ -327,12 +327,12 @@ func (h *Handler) stats(w http.ResponseWriter, r *http.Request) {
 	mux.HandleFunc("GET /api/stats", h.stats)
 ```
 
-- [ ] **Step 5: Убедиться, что тесты проходят**
+- [x] **Step 5: Убедиться, что тесты проходят**
 
 Run: `go test ./...`
 Expected: PASS, все пакеты зелёные
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/api/stats.go internal/api/api.go internal/api/api_test.go
@@ -350,7 +350,7 @@ git commit -m "feat: публичный GET /api/stats — частоты шар
 **Files:**
 - Modify: `web/index.html`, `web/app.js`, `web/style.css`
 
-- [ ] **Step 1: Вкладка и панель в `web/index.html`**
+- [x] **Step 1: Вкладка и панель в `web/index.html`**
 
 В `<nav class="tabs">` после кнопки Архива добавить:
 
@@ -366,7 +366,7 @@ git commit -m "feat: публичный GET /api/stats — частоты шар
     </section>
 ```
 
-- [ ] **Step 2: Загрузка и отрисовка в `web/app.js`**
+- [x] **Step 2: Загрузка и отрисовка в `web/app.js`**
 
 В обработчике клика по вкладкам после блока
 
@@ -429,7 +429,7 @@ function statsCard(title, freqs, extra) {
 }
 ```
 
-- [ ] **Step 3: Стили в `web/style.css`**
+- [x] **Step 3: Стили в `web/style.css`**
 
 В конец файла добавить:
 
@@ -440,14 +440,14 @@ function statsCard(title, freqs, extra) {
 .ball-count { color: var(--muted); font-size: 0.85rem; font-weight: 700; }
 ```
 
-- [ ] **Step 4: Собрать и прогнать все тесты**
+- [x] **Step 4: Собрать и прогнать все тесты**
 
 ```bash
 go build ./... && go test ./... && node --test web/parse.test.mjs
 ```
 Expected: сборка без ошибок, тесты PASS (parse-тесты не задеты)
 
-- [ ] **Step 5: Smoke-тест через запущенный сервер**
+- [x] **Step 5: Smoke-тест через запущенный сервер**
 
 ```bash
 go build -o /tmp/fortunata-smoke ./cmd/server
@@ -459,7 +459,7 @@ kill $SERVER_PID; rm -f /tmp/fortunata-smoke*
 ```
 Expected: `{"main":[],"bonus":[]}` и `1`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/index.html web/app.js web/style.css
@@ -472,20 +472,20 @@ git commit -m "feat: вкладка «Статистика» — частоты 
 
 **Files:** без изменений кода.
 
-- [ ] **Step 1: Финальная проверка всего**
+- [x] **Step 1: Финальная проверка всего**
 
 ```bash
 go vet ./... && go test ./... && gofmt -l .   # gofmt: пустой вывод
 ```
 Expected: тесты PASS, `gofmt -l` ничего не печатает
 
-- [ ] **Step 2: Пуш ветки**
+- [x] **Step 2: Пуш ветки**
 
 ```bash
 git push -u origin feat/archive-stats
 ```
 
-- [ ] **Step 3: Создать PR**
+- [x] **Step 3: Создать PR**
 
 ```bash
 gh pr create --title "feat: страница статистики по архиву" --body "## Что сделано
