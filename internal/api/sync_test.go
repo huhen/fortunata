@@ -277,9 +277,11 @@ func TestSyncArchiveClientTimeoutBelowWriteTimeout(t *testing.T) {
 // парсом: после первых 5 МБ есть ещё валидная строка, LimitReader её бы
 // потерял и вернул 200 с added=1.
 func TestSyncOversizeArchive(t *testing.T) {
+	pad := "<!-- отступ -->"
+	// страница: валидная строка №64, отступ (>5 МБ), валидная строка №63 после границы
 	page := "<html><body><table>" +
 		"<tr><td>64</td><td>14 сент</td><td><strong>19, 28, 24, 21, 10, 29, 05 и 18</strong></td><td>10 млн</td></tr>" +
-		strings.Repeat("<!-- отступ -->", maxArchiveBytes/15+1) +
+		strings.Repeat(pad, maxArchiveBytes/len(pad)+1) +
 		"<tr><td>63</td><td>13 сент</td><td><strong>11, 12, 16, 28, 29, 31, 35 и 14</strong></td><td>9 млн</td></tr>" +
 		"</table></body></html>"
 	ts := newSyncServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -297,7 +299,20 @@ func TestSyncOversizeArchive(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(body.Error, "больше 5 МБ") {
+	if !strings.Contains(body.Error, errArchiveTooBig.Error()) {
 		t.Fatalf("error = %q", body.Error)
+	}
+
+	// Частичных данных быть не должно: 502 до всякой вставки.
+	respList := get(t, c, ts.URL+"/api/draws")
+	defer respList.Body.Close()
+	var list struct {
+		Draws []struct{} `json:"draws"`
+	}
+	if err := json.NewDecoder(respList.Body).Decode(&list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Draws) != 0 {
+		t.Fatalf("в базе есть розыгрыши: %d, хотели 0", len(list.Draws))
 	}
 }
