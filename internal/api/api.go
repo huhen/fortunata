@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"fortunata/internal/auth"
+	"fortunata/internal/llm"
 	"fortunata/internal/store"
 )
 
@@ -20,15 +21,17 @@ type Handler struct {
 	st            *store.Store
 	auth          *auth.Manager
 	cookieSecure  bool
-	archiveURL    string       // источник синхронизации; переопределяется в тестах
-	archiveClient *http.Client // клиент скачивания архива; подменяется в тестах
+	archiveURL    string        // источник синхронизации; переопределяется в тестах
+	archiveClient *http.Client  // клиент скачивания архива; подменяется в тестах
+	llm           *llm.Client   // nil — AI-генерация не настроена
+	aiSlots       chan struct{} // слот параллельного AI-запроса; ёмкость 1 — домашний LLM обрабатывает по одному
 }
 
 // newHandler собирает Handler; маршруты регистрирует register.
 // Таймаут клиента должен оставаться меньше WriteTimeout HTTP-сервера
-// (15 с в cmd/server/main.go), иначе вставки закоммитятся, а ответ
+// (130 с в cmd/server/main.go), иначе вставки закоммитятся, а ответ
 // до клиента не дойдёт.
-func newHandler(st *store.Store, password, secret string, cookieSecure bool, archiveURL string) *Handler {
+func newHandler(st *store.Store, password, secret string, cookieSecure bool, archiveURL string, llmClient *llm.Client) *Handler {
 	if archiveURL == "" {
 		archiveURL = defaultArchiveURL
 	}
@@ -38,13 +41,16 @@ func newHandler(st *store.Store, password, secret string, cookieSecure bool, arc
 		cookieSecure:  cookieSecure,
 		archiveURL:    archiveURL,
 		archiveClient: &http.Client{Timeout: 10 * time.Second},
+		llm:           llmClient,
+		aiSlots:       make(chan struct{}, 1),
 	}
 }
 
 // New собирает все /api-маршруты; main может добавить на этот же mux статику.
-// Пустой archiveURL заменяется на defaultArchiveURL.
-func New(st *store.Store, password, secret string, cookieSecure bool, archiveURL string) *http.ServeMux {
-	h := newHandler(st, password, secret, cookieSecure, archiveURL)
+// Пустой archiveURL заменяется на defaultArchiveURL; llmClient == nil
+// выключает AI-генерацию.
+func New(st *store.Store, password, secret string, cookieSecure bool, archiveURL string, llmClient *llm.Client) *http.ServeMux {
+	h := newHandler(st, password, secret, cookieSecure, archiveURL, llmClient)
 	mux := http.NewServeMux()
 	h.register(mux)
 	return mux
@@ -63,6 +69,7 @@ func (h *Handler) register(mux *http.ServeMux) {
 	mux.Handle("DELETE /api/draws/{no}", h.session(h.deleteDraw))
 	mux.Handle("POST /api/sync", h.session(requireJSON(h.syncDraws)))
 	mux.Handle("POST /api/generate", requireJSON(h.generate))
+	mux.Handle("POST /api/generate/ai", requireJSON(h.generateAI))
 }
 
 // requireJSON защищает мутации: CSRF-запрос из формы со стороннего сайта

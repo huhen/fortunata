@@ -24,27 +24,66 @@ tabs.forEach((tab) => {
 // Генерация
 const genError = document.getElementById('gen-error');
 const ticketsBox = document.getElementById('tickets');
+const countInput = document.getElementById('count');
+const btnAI = document.getElementById('btn-generate-ai');
+const aiLabel = btnAI.textContent;
+
+// renderTickets рисует пачку билетов в #tickets (общий для обеих кнопок).
+function renderTickets(tickets) {
+  ticketsBox.replaceChildren();
+  for (const t of tickets) {
+    const row = document.createElement('div');
+    row.className = 'ticket';
+    for (const n of t.numbers) {
+      row.append(ball(n));
+    }
+    row.append(ball(t.bonus, 'bonus'));
+    ticketsBox.append(row);
+  }
+}
+
+function showGenError(e) {
+  genError.textContent = e.message;
+  genError.hidden = false;
+}
 
 document.getElementById('btn-generate').addEventListener('click', async () => {
   genError.hidden = true;
-  const count = Number(document.getElementById('count').value);
   try {
-    const data = await api('/api/generate', { method: 'POST', body: { count } });
-    ticketsBox.replaceChildren();
-    for (const t of data.tickets) {
-      const row = document.createElement('div');
-      row.className = 'ticket';
-      for (const n of t.numbers) {
-        row.append(ball(n));
-      }
-      row.append(ball(t.bonus, 'bonus'));
-      ticketsBox.append(row);
-    }
+    const data = await api('/api/generate', { method: 'POST', body: { count: Number(countInput.value) } });
+    renderTickets(data.tickets);
   } catch (e) {
-    genError.textContent = e.message;
-    genError.hidden = false;
+    showGenError(e);
   }
 });
+
+btnAI.addEventListener('click', async () => {
+  genError.hidden = true;
+  btnAI.disabled = true;
+  btnAI.textContent = 'AI думает…';
+  countInput.disabled = true;
+  try {
+    const data = await api('/api/generate/ai', { method: 'POST', body: { count: Number(countInput.value) } });
+    renderTickets(data.tickets);
+  } catch (e) {
+    showGenError(e);
+  } finally {
+    btnAI.disabled = false;
+    btnAI.textContent = aiLabel;
+    countInput.disabled = false;
+  }
+});
+
+// AI-кнопка видна, только если сервер настроил LLM. Запрос после
+// навешивания обработчиков: top-level await не задержит их.
+try {
+  const v = await api('/api/version');
+  if (v && v.ai) {
+    btnAI.hidden = false;
+  }
+} catch {
+  // /api/version недоступен — кнопка остаётся скрытой
+}
 
 // Архив
 async function loadDraws() {

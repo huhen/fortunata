@@ -10,6 +10,7 @@
 - **Архив** — публичный просмотр прошедших розыгрышей.
 - **Статистика** — частоты выпадения шаров: основные, затем бонусные, по убыванию; у каждого шара количество выпадений.
 - **Редактирование** — добавление/изменение/удаление под паролем на странице `/admin` (без имён пользователей).
+- **AI-генерация** — N комбинаций от LLM-сервера (llama.cpp); включается переменными `LLM_BASE_URL`/`LLM_MODEL` (см. таблицу окружения).
 - Источник результатов: [timelottery.ru — архив розыгрышей Fortunata](https://timelottery.ru/arhiv/rezultaty-vseh-rozygryshej-fortunata/).
 
 ## Локальный запуск
@@ -20,6 +21,9 @@
 ADMIN_PASSWORD=test go run ./cmd/server
 # http://localhost:8080
 ```
+
+Для AI-генерации переменные передаются инлайн:
+`LLM_BASE_URL=... LLM_MODEL=... ADMIN_PASSWORD=test go run ./cmd/server`.
 
 ### Вариант 2: Docker (без Traefik)
 
@@ -74,8 +78,8 @@ Traefik должен иметь доступ к этой сети; роутер 
   вместе с базой.
 - Предполагается, что глобальный редирект http→https настроен на стороне
   вашего Traefik; compose-файл привязывает роутер только к `websecure`.
-- `ADMIN_PASSWORD` и `SESSION_SECRET` передаются через env и видны в
-  `docker inspect` — для single-host private-приложения это осознанный
+- `ADMIN_PASSWORD`, `SESSION_SECRET` и `LLM_API_KEY` передаются через env и
+  видны в `docker inspect` — для single-host private-приложения это осознанный
   компромисс; секреты не логируются приложением.
 - Логи контейнера ограничены (`json-file`, 10 МБ × 3 файла).
 
@@ -88,6 +92,9 @@ Traefik должен иметь доступ к этой сети; роутер 
 | `ADMIN_PASSWORD` | Пароль редактирования (обязателен) | — |
 | `SESSION_SECRET` | Секрет подписи сессий; пусто — случайный | случайный |
 | `COOKIE_SECURE` | Флаг Secure у cookie (true за HTTPS) | `false` |
+| `LLM_BASE_URL` | База llama.cpp-сервера; задаётся вместе с `LLM_MODEL`, пусто — AI-генерация выключена | *(пусто)* |
+| `LLM_MODEL` | Имя модели на LLM-сервере; задаётся вместе с `LLM_BASE_URL` | *(пусто)* |
+| `LLM_API_KEY` | Bearer-токен LLM-сервера | *(пусто)* |
 
 ## API
 
@@ -98,8 +105,9 @@ Traefik должен иметь доступ к этой сети; роутер 
 | GET | `/api/me` | публично | `{authenticated}` |
 | GET | `/api/draws` | публично | список розыгрышей |
 | GET | `/api/stats` | публично | частоты шаров: `{main: [...], bonus: [...]}` |
-| GET | `/api/version` | публично | версия сборки: `{version}` (без прошивки — `dev`) |
+| GET | `/api/version` | публично | версия сборки и флаг настроенности AI: `{version, ai}` (без прошивки — `dev`) |
 | POST | `/api/draws` | сессия | создать `{drawNo, numbers[7], bonus}` |
 | PUT | `/api/draws/{no}` | сессия | заменить комбинацию |
 | DELETE | `/api/draws/{no}` | сессия | удалить |
 | POST | `/api/generate` | публично | `{count}` → `{tickets}` |
+| POST | `/api/generate/ai` | публично | N комбинаций от LLM (нужен настроенный LLM_*, максимум 20): `{tickets: [{numbers, bonus}]}` |

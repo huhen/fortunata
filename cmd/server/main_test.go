@@ -54,6 +54,54 @@ func TestLoadConfigRandomSecret(t *testing.T) {
 	}
 }
 
+func TestLoadConfigLLMPair(t *testing.T) {
+	env := map[string]string{
+		"ADMIN_PASSWORD": "pass",
+		"LLM_BASE_URL":   "http://192.168.1.128:18020",
+		"LLM_MODEL":      "qwen3.8-27b",
+		"LLM_API_KEY":    "secret",
+	}
+	cfg, err := loadConfig(func(k string) string { return env[k] })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LLMBaseURL != "http://192.168.1.128:18020" || cfg.LLMModel != "qwen3.8-27b" || cfg.LLMAPIKey != "secret" {
+		t.Fatalf("LLM-конфиг: %+v", cfg)
+	}
+}
+
+func TestLoadConfigLLMHalfConfigured(t *testing.T) {
+	getenv := func(k string) string {
+		if k == "ADMIN_PASSWORD" {
+			return "pass"
+		}
+		if k == "LLM_BASE_URL" {
+			return "http://x"
+		}
+		return ""
+	}
+	_, err := loadConfig(getenv)
+	if err == nil || !strings.Contains(err.Error(), "LLM_BASE_URL") {
+		t.Fatalf("ожидали ошибку пары LLM_*, got %v", err)
+	}
+}
+
+func TestLoadConfigLLMOffByDefault(t *testing.T) {
+	getenv := func(k string) string {
+		if k == "ADMIN_PASSWORD" {
+			return "pass"
+		}
+		return ""
+	}
+	cfg, err := loadConfig(getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.LLMBaseURL != "" || cfg.LLMModel != "" || cfg.LLMAPIKey != "" {
+		t.Fatalf("LLM должен быть выключен: %+v", cfg)
+	}
+}
+
 func TestLoadConfigInvalidCookieSecure(t *testing.T) {
 	getenv := func(k string) string {
 		if k == "COOKIE_SECURE" {

@@ -106,7 +106,7 @@ func GenerateBatch(mainFreq, bonusFreq []int, count int, rng RNG) []Ticket {
 		var t Ticket
 		for attempt := 0; ; attempt++ {
 			t = GenerateTicket(mainFreq, bonusFreq, rng)
-			key := ticketKey(t)
+			key := Key(t)
 			if _, dup := seen[key]; !dup || attempt >= dupAttempts-1 {
 				seen[key] = struct{}{}
 				tickets = append(tickets, t)
@@ -117,6 +117,8 @@ func GenerateBatch(mainFreq, bonusFreq []int, count int, rng RNG) []Ticket {
 	return tickets
 }
 
-func ticketKey(t Ticket) string {
+// Key — строковый ключ билета для дедупликации пачки (числа + бонус).
+// Экспортирован: используется также пакетом llm.
+func Key(t Ticket) string {
 	return fmt.Sprintf("%v+%d", t.Numbers, t.Bonus)
 }
