@@ -134,24 +134,18 @@ func TestValidate(t *testing.T) {
 		name  string
 		main  []int
 		bonus int
-		fragm string // "" — валидна
+		want  string // "" — валидна
 	}{
 		{"валидна", ok, 18, ""},
-		{"число вне диапазона", []int{0, 10, 19, 21, 24, 28, 29}, 18, "0 вне диапазона"},
-		{"число больше 35", []int{5, 10, 19, 21, 24, 28, 36}, 18, "36 вне диапазона"},
-		{"повтор", []int{5, 5, 19, 21, 24, 28, 29}, 18, "повторяется"},
-		{"бонус вне диапазона", ok, 55, "бонусное число 55 вне диапазона"},
+		{"число вне диапазона", []int{0, 10, 19, 21, 24, 28, 29}, 18, "число 0 вне диапазона 1–35"},
+		{"число больше 35", []int{5, 10, 19, 21, 24, 28, 36}, 18, "число 36 вне диапазона 1–35"},
+		{"повтор", []int{5, 5, 19, 21, 24, 28, 29}, 18, "число 5 повторяется"},
+		{"бонус вне диапазона", ok, 55, "бонусное число 55 вне диапазона 1–54"},
+		{"бонус ноль", ok, 0, "бонусное число 0 вне диапазона 1–54"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			msg := validate(tc.main, tc.bonus)
-			if tc.fragm == "" {
-				if msg != "" {
-					t.Fatalf("validate(%v, %d) = %q, хотели \"\"", tc.main, tc.bonus, msg)
-				}
-				return
-			}
-			if !strings.Contains(msg, tc.fragm) {
-				t.Fatalf("validate(%v, %d) = %q, хотели подстроку %q", tc.main, tc.bonus, msg, tc.fragm)
+			if msg := validate(tc.main, tc.bonus); msg != tc.want {
+				t.Fatalf("validate(%v, %d) = %q, хотели %q", tc.main, tc.bonus, msg, tc.want)
 			}
 		})
 	}
