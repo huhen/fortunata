@@ -27,6 +27,9 @@ docker compose -f compose.local.yaml up --build -d   # Docker без Traefik (п
   доборов невалидных комбинаций
 - `internal/timelottery/` — парсер страницы архива timelottery.ru для
   `POST /api/sync` (ищет строки данных по содержимому, устойчив к редизайну)
+- `internal/scheduler/` — ежедневный запуск задачи в HH:MM UTC (автосинка):
+  догон при старте, повтор через час при ошибке; время/интервалы — точка
+  инъекции для тестов
 - `internal/version/` — версия сборки (`dev` по умолчанию), прошивается
   `-ldflags -X` в release.yml и Dockerfile, отдаётся `GET /api/version`
 - `web/` — статика, встраивается через `//go:embed` в `web/embed.go`
@@ -36,7 +39,9 @@ docker compose -f compose.local.yaml up --build -d   # Docker без Traefik (п
 `ADMIN_PASSWORD` обязателен (без него сервер не стартует). Остальные: `ADDR`
 (`:8080`), `DB_PATH` (`fortunata.db`), `SESSION_SECRET` (пусто = случайный),
 `COOKIE_SECURE` (`false`; за HTTPS — `true`), `LLM_BASE_URL` + `LLM_MODEL`
-(задаются вместе; пусто = AI-генерация выключена), `LLM_API_KEY` (опционален).
+(задаются вместе; пусто = AI-генерация выключена), `LLM_API_KEY` (опционален),
+`SYNC_AT` (`15:00`, время суточной автосинки в UTC, формат `HH:MM` строго),
+`SYNC_ENABLED` (`false` — планировщик не заводится, ручная синка работает).
 
 ## Gotchas
 
