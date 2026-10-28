@@ -96,6 +96,71 @@ func TestCompleteHTTPError(t *testing.T) {
 	}
 }
 
+// В ошибке не-200 должен быть сниппет тела: у llama.cpp там причины
+// (модель не загружена, слот занят).
+func TestCompleteHTTPErrorIncludesBodySnippet(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":{"message":"model not loaded"}}`))
+	})
+	_, err := c.Complete(context.Background(), "hi")
+	if err == nil || !strings.Contains(err.Error(), "model not loaded") {
+		t.Fatalf("err = %v, хотим сниппет тела в ошибке", err)
+	}
+}
+
+// Отмена контекста клиента (ушёл со страницы) — не «LLM-сервер недоступен».
+// Контекст отменён заранее: путь классификации ошибки тот же (http.Client
+// оборачивает context.Canceled в url.Error), а тест детерминирован — сервер
+// запроса не видит.
+func TestCompleteCanceledContextNotUnavailable(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("запрос с отменённым контекстом не должен дойти до сервера")
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := c.Complete(ctx, "hi")
+	if err == nil {
+		t.Fatal("ожидали ошибку отмены")
+	}
+	if errors.Is(err, ErrUnavailable) {
+		t.Fatalf("err = %v, отмена не должна быть ErrUnavailable", err)
+	}
+	if !strings.Contains(err.Error(), "отменён") {
+		t.Fatalf("err = %v, хотим «отменён»", err)
+	}
+}
+
+// finish_reason=length: контент всё равно возвращается (warn в логе —
+// наблюдаемость, не изменение поведения).
+func TestCompleteFinishReasonLengthStillReturnsContent(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []any{map[string]any{
+				"message":       map[string]any{"content": "обрезанный"},
+				"finish_reason": "length",
+			}},
+		})
+	})
+	out, err := c.Complete(context.Background(), "hi")
+	if err != nil || out != "обрезанный" {
+		t.Fatalf("out = %q, err = %v", out, err)
+	}
+}
+
+// TestTimeoutsBelowWriteTimeout — requestTimeout и proposeBudget должны быть
+// меньше WriteTimeout HTTP-сервера, иначе ответ AI-генерации умрёт при
+// записи. Число дублирует api.WriteTimeout: импорт api из llm дал бы цикл.
+func TestTimeoutsBelowWriteTimeout(t *testing.T) {
+	const writeTimeout = 130 * time.Second // api.WriteTimeout
+	if requestTimeout >= writeTimeout {
+		t.Fatalf("requestTimeout = %v, должен быть меньше WriteTimeout %v", requestTimeout, writeTimeout)
+	}
+	if proposeBudget >= writeTimeout {
+		t.Fatalf("proposeBudget = %v, должен быть меньше WriteTimeout %v", proposeBudget, writeTimeout)
+	}
+}
+
 func TestCompleteEmptyChoices(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{}})
@@ -188,19 +253,22 @@ func TestProposeGivesUpAfterMaxRefills(t *testing.T) {
 	}
 }
 
+// Бюджетные тесты разнесены по времени (бюджет 1 с, отклик 100 мс,
+// зависание 5 с): на нагруженном CI запас в 900 мс не даёт исходу «поплыть».
+
 func TestProposePartialOnBudgetExpiry(t *testing.T) {
 	calls := 0
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		if calls == 1 {
-			time.Sleep(150 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 			respondLLM(w, `{"combinations":[{"numbers":[1,2,3,4,5,6,7],"bonus":8}]}`)
 			return
 		}
-		time.Sleep(2 * time.Second) // бюджет кончится раньше
+		time.Sleep(2 * time.Second) // бюджет (1 с) кончится намного раньше
 		respondLLM(w, `{"combinations":[{"numbers":[9,10,11,12,13,14,15],"bonus":9}]}`)
 	})
-	c.budget = 400 * time.Millisecond
+	c.budget = 1 * time.Second
 	got, err := c.Propose(context.Background(), 2, make([]int, 35), make([]int, 54), 0)
 	if err != nil {
 		t.Fatal(err)
@@ -215,7 +283,7 @@ func TestProposeBudgetExpiryNoTickets(t *testing.T) {
 		time.Sleep(2 * time.Second)
 		respondLLM(w, `{"combinations":[{"numbers":[1,2,3,4,5,6,7],"bonus":8}]}`)
 	})
-	c.budget = 100 * time.Millisecond
+	c.budget = 1 * time.Second
 	_, err := c.Propose(context.Background(), 1, make([]int, 35), make([]int, 54), 0)
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("err = %v, хотим ErrUnavailable (0 билетов — ошибка)", err)

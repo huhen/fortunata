@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 
-	"fortunata/internal/generate"
 	"fortunata/internal/llm"
 )
 
@@ -16,13 +15,6 @@ const maxAICount = 20
 func (h *Handler) generateAI(w http.ResponseWriter, r *http.Request) {
 	if h.llm == nil {
 		errorJSON(w, http.StatusServiceUnavailable, "AI генерация не настроена")
-		return
-	}
-	select {
-	case h.aiSlots <- struct{}{}:
-		defer func() { <-h.aiSlots }()
-	default:
-		errorJSON(w, http.StatusServiceUnavailable, "AI генерация занята, попробуйте позже")
 		return
 	}
 	var req struct {
@@ -35,17 +27,21 @@ func (h *Handler) generateAI(w http.ResponseWriter, r *http.Request) {
 		errorJSON(w, http.StatusBadRequest, "Количество билетов — от 1 до 20")
 		return
 	}
-	draws, err := h.st.List()
+	// Слот захватываем после валидации: невалидный запрос не должен получать
+	// 503 «занята» вместо 400, а медленное тело — держать слот.
+	select {
+	case h.aiSlots <- struct{}{}:
+		defer func() { <-h.aiSlots }()
+	default:
+		errorJSON(w, http.StatusServiceUnavailable, "AI генерация занята, попробуйте позже")
+		return
+	}
+	mainFreq, bonusFreq, totalDraws, err := h.archiveFrequencies()
 	if err != nil {
 		errorJSON(w, http.StatusInternalServerError, "Не удалось прочитать базу розыгрышей")
 		return
 	}
-	freq := make([]generate.DrawFreq, len(draws))
-	for i, d := range draws {
-		freq[i] = generate.DrawFreq{Numbers: d.Numbers, Bonus: d.Bonus}
-	}
-	mainFreq, bonusFreq := generate.Frequencies(freq)
-	tickets, err := h.llm.Propose(r.Context(), req.Count, mainFreq, bonusFreq, len(draws))
+	tickets, err := h.llm.Propose(r.Context(), req.Count, mainFreq, bonusFreq, totalDraws)
 	if err != nil {
 		if errors.Is(err, llm.ErrUnavailable) {
 			slog.Warn("generate-ai: LLM недоступен", "err", err)

@@ -113,6 +113,22 @@ func TestSyncStatusRecordsError(t *testing.T) {
 	}
 }
 
+// JSON-контракт поля last.issues: синка со смешанной страницей (одна
+// валидная строка, одна битая) записывает количество проблем.
+func TestSyncStatusRecordsIssues(t *testing.T) {
+	mixed := `<html><body><table>
+<tr><td>64</td><td>14 сент</td><td><strong>19, 28, 24, 21, 10, 29, 05 и 18</strong></td><td>10 млн</td></tr>
+<tr><td>62</td><td>3 сент</td><td><strong>1, 2, 3, 4, 5, 36, 07 и 08</strong></td><td>5 млн</td></tr>
+</table></body></html>`
+	ts := newStatusServer(t, SyncConfig{Hour: 15, Enabled: true}, mixed)
+	c := loginClient(t, ts)
+	post(t, c, ts.URL+"/api/sync", map[string]any{}).Body.Close()
+	body := decodeStatus(t, get(t, c, ts.URL+"/api/sync-status"))
+	if body.Last == nil || body.Last.Added != 1 || body.Last.Issues != 1 {
+		t.Fatalf("last = %+v, ожидали added=1, issues=1", body.Last)
+	}
+}
+
 // Склейка планировщика со статусом: fn планировщика — тот же
 // runSyncAndRecord, его вызов напрямую (как делает планировщик) должен
 // отразиться в GET /api/sync-status.

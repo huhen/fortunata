@@ -185,7 +185,7 @@ func main() {
 			defer wg.Done()
 			sched.Run(ctx)
 		}()
-		logger.Info("автосинхронизация включена", "at", fmt.Sprintf("%02d:%02d UTC", cfg.SyncAtHour, cfg.SyncAtMin))
+		logger.Info("автосинхронизация включена", "at", api.FormatSchedule(cfg.SyncAtHour, cfg.SyncAtMin))
 	}
 	go func() {
 		logger.Info("слушаю", "addr", cfg.Addr, "db", cfg.DBPath)

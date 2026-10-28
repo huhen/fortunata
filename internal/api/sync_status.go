@@ -49,7 +49,7 @@ type syncStatusResponse struct {
 // syncStatusGet — GET /api/sync-status (под сессией, как остальные
 // админские маршруты).
 func (h *Handler) syncStatusGet(w http.ResponseWriter, r *http.Request) {
-	resp := syncStatusResponse{Enabled: h.syncEnabled, Schedule: h.syncAt}
+	resp := syncStatusResponse{Enabled: h.sched != nil, Schedule: h.syncAt}
 	if h.sched != nil {
 		nr := h.sched.NextRun()
 		resp.NextRun = &nr

@@ -19,9 +19,9 @@ import (
 const maxBodyBytes = 64 << 10
 
 // WriteTimeout — таймаут записи HTTP-сервера: cmd/server ставит его на
-// http.Server. Вмещает запрос к LLM (120 с в internal/llm), иначе ответ
-// AI-генерации умрёт при записи. Таймаут скачивания архива обязан быть
-// меньше него (см. newHandler).
+// http.Server. Худший случай — proposeBudget в internal/llm (125 с, запас
+// 5 с), иначе ответ AI-генерации умрёт при записи. Таймаут скачивания
+// архива обязан быть меньше него (см. newHandler).
 const WriteTimeout = 130 * time.Second
 
 // defaultArchiveURL — страница архива результатов на timelottery.ru.
@@ -33,15 +33,20 @@ type SyncConfig struct {
 	Enabled   bool
 }
 
+// FormatSchedule рендерит время расписания («15:00 UTC») — одно место для
+// лога cmd/server и поля schedule в статусе.
+func FormatSchedule(hour, min int) string {
+	return fmt.Sprintf("%02d:%02d UTC", hour, min)
+}
+
 type Handler struct {
 	st            *store.Store
 	auth          *auth.Manager
 	cookieSecure  bool
-	archiveURL    string        // источник синхронизации; переопределяется в тестах
-	archiveClient *http.Client  // клиент скачивания архива; подменяется в тестах
-	llm           *llm.Client   // nil — AI-генерация не настроена
-	aiSlots       chan struct{} // слот параллельного AI-запроса; ёмкость 1 — домашний LLM обрабатывает по одному
-	syncEnabled   bool
+	archiveURL    string               // источник синхронизации; переопределяется в тестах
+	archiveClient *http.Client         // клиент скачивания архива; подменяется в тестах
+	llm           *llm.Client          // nil — AI-генерация не настроена
+	aiSlots       chan struct{}        // слот параллельного AI-запроса; ёмкость 1 — домашний LLM обрабатывает по одному
 	syncAt        string               // «15:00 UTC» — для статуса
 	sched         *scheduler.Scheduler // nil — автосинхронизация выключена
 	mu            sync.Mutex           // защищает lastSync
@@ -64,8 +69,7 @@ func newHandler(st *store.Store, password, secret string, cookieSecure bool, arc
 		archiveClient: &http.Client{Timeout: 10 * time.Second},
 		llm:           llmClient,
 		aiSlots:       make(chan struct{}, 1),
-		syncEnabled:   syncCfg.Enabled,
-		syncAt:        fmt.Sprintf("%02d:%02d UTC", syncCfg.Hour, syncCfg.Min),
+		syncAt:        FormatSchedule(syncCfg.Hour, syncCfg.Min),
 	}
 	if syncCfg.Enabled {
 		h.sched = scheduler.New(syncCfg.Hour, syncCfg.Min, func(ctx context.Context) error {

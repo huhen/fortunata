@@ -28,6 +28,18 @@ export async function api(path, { method = 'GET', body } = {}) {
   return data;
 }
 
+// fetchVersion — /api/version с кэшем: app.js и footer.js на одной
+// загрузке страницы делят один запрос (модуль — синглтон). Ошибка/не-2xx — null.
+let versionPromise = null;
+export function fetchVersion() {
+  if (!versionPromise) {
+    versionPromise = fetch('/api/version')
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+  }
+  return versionPromise;
+}
+
 // fmt приводит число к виду «02» для шаров.
 export function fmt(n) {
   return String(n).padStart(2, '0');

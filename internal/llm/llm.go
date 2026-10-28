@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -19,12 +20,12 @@ import (
 
 const (
 	// requestTimeout — лимит одного запроса к LLM; должен оставаться меньше
-	// WriteTimeout HTTP-сервера в cmd/server/main.go, иначе ответ
-	// AI-генерации закоммитится, а до клиента не дойдёт.
+	// api.WriteTimeout (инвариант проверяет TestTimeoutsBelowWriteTimeout),
+	// иначе HTTP-сервер оборвёт соединение раньше готового ответа.
 	requestTimeout = 120 * time.Second
 	// proposeBudget — суммарный лимит Propose (запрос + доборы); должен
-	// оставаться меньше WriteTimeout HTTP-сервера (130 с в
-	// cmd/server/main.go), иначе частичный ответ не дойдёт до клиента.
+	// оставаться меньше api.WriteTimeout (запас 5 с), иначе частичный ответ
+	// не дойдёт до клиента.
 	proposeBudget = 125 * time.Second
 	// maxTokens — запас на <think>-рассуждения qwen3 и 20 комбинаций.
 	maxTokens = 4096
@@ -77,6 +78,7 @@ type chatResponse struct {
 		Message struct {
 			Content string `json:"content"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 }
 
@@ -102,11 +104,18 @@ func (c *Client) Complete(ctx context.Context, userPrompt string) (string, error
 	}
 	resp, err := c.hc.Do(req)
 	if err != nil {
+		// Отмена контекста клиента (ушёл со страницы) — не «сервер недоступен».
+		if errors.Is(err, context.Canceled) {
+			return "", fmt.Errorf("запрос к LLM отменён: %w", err)
+		}
 		return "", fmt.Errorf("%w: %v", ErrUnavailable, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("сервер LLM ответил %d", resp.StatusCode)
+		// Сниппет тела: у llama.cpp там полезные причины (модель не загружена,
+		// слот занят); чтение до 2 КБ заодно дренирует тело и бережёт keep-alive.
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<10))
+		return "", fmt.Errorf("сервер LLM ответил %d: %s", resp.StatusCode, strings.TrimSpace(string(snippet)))
 	}
 	var cr chatResponse
 	// Лимит тела — гигиена: ожидаемый ответ на 20 комбинаций — десятки КБ.
@@ -115,6 +124,11 @@ func (c *Client) Complete(ctx context.Context, userPrompt string) (string, error
 	}
 	if len(cr.Choices) == 0 || cr.Choices[0].Message.Content == "" {
 		return "", errors.New("пустой ответ LLM")
+	}
+	if cr.Choices[0].FinishReason == "length" {
+		// Ответ обрезан max_tokens: JSON почти наверняка битый, добор даст
+		// такой же обрезанный хвост — warn для наблюдаемости.
+		slog.Warn("llm: ответ обрезан по finish_reason=length", "model", c.model)
 	}
 	return cr.Choices[0].Message.Content, nil
 }
@@ -132,8 +146,12 @@ func (c *Client) Propose(ctx context.Context, count int, main, bonus []int, tota
 	seen := make(map[string]struct{}, count)
 	tickets := make([]generate.Ticket, 0, count)
 	for attempt := 0; len(tickets) < count && attempt <= maxRefills; attempt++ {
-		// Бюджет исчерпан — отдаём что успели набрать (частичный результат).
+		// Бюджет исчерпан — отдаём что успели набрать; при нуле — ошибка,
+		// как обещает godoc.
 		if ctx.Err() != nil {
+			if len(tickets) == 0 {
+				return nil, fmt.Errorf("бюджет исчерпан до первого ответа: %w", ErrUnavailable)
+			}
 			return tickets, nil
 		}
 		var exclude []generate.Ticket

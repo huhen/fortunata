@@ -249,16 +249,23 @@ function autoSyncText(s) {
     if (s.last.error) {
       parts.push(`последняя: ${fmtUTC(s.last.at)}, ошибка: ${s.last.error}`);
     } else {
-      parts.push(`последняя: ${fmtUTC(s.last.at)}, добавлено ${s.last.added}`);
+      let last = `последняя: ${fmtUTC(s.last.at)}, добавлено ${s.last.added}, пропущено ${s.last.skipped}`;
+      if (s.last.issues > 0) {
+        last += `, проблемы ${s.last.issues}`;
+      }
+      parts.push(last);
     }
   }
-  return parts.join('. ') + '.';
+  // Части — строчные фрагменты: склеиваем через «; » как в syncSummary,
+  // иначе «…UTC. следующая — …» читается как обрывки фраз.
+  return parts.join('; ') + '.';
 }
 
 // fmtUTC — время в UTC: расписание задаётся в UTC, показываем то же время,
-// что и на сервере, без перевода в локальный часовой пояс.
+// что и на сервере, без перевода в локальный часовой пояс. Год обязателен:
+// запись прошлой года иначе читается неоднозначно.
 function fmtUTC(iso) {
   return new Date(iso).toLocaleString('ru-RU', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
   });
 }
