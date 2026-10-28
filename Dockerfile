@@ -5,7 +5,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X fortunata/internal/version.Version=${VERSION}" -o /out/fortunata ./cmd/server \
+# ${VERSION:-dev}: пустой --build-arg VERSION= не должен впрессовывать пустую версию.
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X fortunata/internal/version.Version=${VERSION:-dev}" -o /out/fortunata ./cmd/server \
  && mkdir -p /out/data && chown 65532:65532 /out/data
 
 # Минимальный рантайм: только бинарник и пустой /data с владельцем 65532
