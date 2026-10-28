@@ -42,7 +42,8 @@ func newSyncServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
 	st := newTestStore(t)
-	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, upstream.URL, nil))
+	mux, _ := New(st, "pass123", "test-secret", false, upstream.URL, nil, syncOn())
+	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	return ts
 }
@@ -224,7 +225,8 @@ func TestSyncUpstreamUnreachable(t *testing.T) {
 	deadURL := dead.URL
 	dead.Close()
 	st := newTestStore(t)
-	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, deadURL, nil))
+	mux, _ := New(st, "pass123", "test-secret", false, deadURL, nil, syncOn())
+	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	c := loginClient(t, ts)
 	resp := post(t, c, ts.URL+"/api/sync", map[string]any{})
@@ -248,7 +250,7 @@ func TestSyncArchiveTimeout(t *testing.T) {
 	}))
 	t.Cleanup(upstream.Close)
 
-	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL, nil)
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL, nil, SyncConfig{})
 	h.archiveClient = &http.Client{Timeout: 100 * time.Millisecond}
 	mux := http.NewServeMux()
 	h.register(mux)
@@ -268,7 +270,7 @@ func TestSyncArchiveTimeout(t *testing.T) {
 // закоммитятся, а ответ до клиента не дойдёт.
 func TestSyncArchiveClientTimeoutBelowWriteTimeout(t *testing.T) {
 	const writeTimeout = 130 * time.Second // WriteTimeout в cmd/server/main.go
-	if got := newHandler(newTestStore(t), "p", "s", false, "", nil).archiveClient.Timeout; got >= writeTimeout {
+	if got := newHandler(newTestStore(t), "p", "s", false, "", nil, SyncConfig{}).archiveClient.Timeout; got >= writeTimeout {
 		t.Fatalf("таймаут archiveClient = %v, должен быть меньше WriteTimeout %v", got, writeTimeout)
 	}
 }
@@ -325,7 +327,7 @@ func TestSyncStoreClosed(t *testing.T) {
 	}))
 	t.Cleanup(upstream.Close)
 
-	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL, nil)
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL, nil, SyncConfig{})
 	mux := http.NewServeMux()
 	h.register(mux)
 	ts := httptest.NewServer(mux)

@@ -117,3 +117,78 @@ func TestLoadConfigInvalidCookieSecure(t *testing.T) {
 		t.Fatalf("ожидали ошибку COOKIE_SECURE, got %v", err)
 	}
 }
+
+func TestLoadConfigSyncDefaults(t *testing.T) {
+	getenv := func(k string) string {
+		if k == "ADMIN_PASSWORD" {
+			return "pass"
+		}
+		return ""
+	}
+	cfg, err := loadConfig(getenv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SyncAtHour != 15 || cfg.SyncAtMin != 0 || !cfg.SyncEnabled {
+		t.Fatalf("дефолты SYNC_*: %+v", cfg)
+	}
+}
+
+func TestLoadConfigSyncCustom(t *testing.T) {
+	env := map[string]string{
+		"ADMIN_PASSWORD": "pass",
+		"SYNC_AT":        "07:30",
+		"SYNC_ENABLED":   "false",
+	}
+	cfg, err := loadConfig(func(k string) string { return env[k] })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.SyncAtHour != 7 || cfg.SyncAtMin != 30 || cfg.SyncEnabled {
+		t.Fatalf("свой SYNC_*: %+v", cfg)
+	}
+}
+
+func TestLoadConfigSyncBoundary(t *testing.T) {
+	cases := []struct {
+		at   string
+		hour int
+		min  int
+	}{
+		{"00:00", 0, 0},
+		{"23:59", 23, 59},
+	}
+	for _, tc := range cases {
+		t.Run(tc.at, func(t *testing.T) {
+			env := map[string]string{"ADMIN_PASSWORD": "pass", "SYNC_AT": tc.at}
+			cfg, err := loadConfig(func(k string) string { return env[k] })
+			if err != nil {
+				t.Fatal(err)
+			}
+			if cfg.SyncAtHour != tc.hour || cfg.SyncAtMin != tc.min {
+				t.Fatalf("SYNC_AT=%q: ожидали %d:%02d, got %d:%02d", tc.at, tc.hour, tc.min, cfg.SyncAtHour, cfg.SyncAtMin)
+			}
+		})
+	}
+}
+
+func TestLoadConfigSyncBadAt(t *testing.T) {
+	// «7:30» и «15:00:00» отвергаем: формат строго HH:MM, две цифры каждого поля.
+	for _, at := range []string{"25:00", "7:30", "15:60", "abc", "15:00:00", "-1:00", "ab:cd"} {
+		t.Run(at, func(t *testing.T) {
+			env := map[string]string{"ADMIN_PASSWORD": "pass", "SYNC_AT": at}
+			_, err := loadConfig(func(k string) string { return env[k] })
+			if err == nil || !strings.Contains(err.Error(), "SYNC_AT") {
+				t.Fatalf("SYNC_AT=%q: ожидали ошибку, got %v", at, err)
+			}
+		})
+	}
+}
+
+func TestLoadConfigSyncBadEnabled(t *testing.T) {
+	env := map[string]string{"ADMIN_PASSWORD": "pass", "SYNC_ENABLED": "maybe"}
+	_, err := loadConfig(func(k string) string { return env[k] })
+	if err == nil || !strings.Contains(err.Error(), "SYNC_ENABLED") {
+		t.Fatalf("ожидали ошибку SYNC_ENABLED, got %v", err)
+	}
+}

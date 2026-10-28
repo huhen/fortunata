@@ -29,8 +29,9 @@ func newAIServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
-	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, "",
-		llm.NewClient(upstream.URL, "test-model", "", nil)))
+	mux, _ := New(st, "pass123", "test-secret", false, "",
+		llm.NewClient(upstream.URL, "test-model", "", nil), syncOn())
+	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	return ts
 }
@@ -41,7 +42,7 @@ func TestGenerateAIBusy(t *testing.T) {
 	}))
 	t.Cleanup(upstream.Close)
 	h := newHandler(newTestStore(t), "pass123", "test-secret", false, "",
-		llm.NewClient(upstream.URL, "test-model", "", nil))
+		llm.NewClient(upstream.URL, "test-model", "", nil), SyncConfig{})
 	h.aiSlots <- struct{}{} // слот занят
 	mux := http.NewServeMux()
 	h.register(mux)

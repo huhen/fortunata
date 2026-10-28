@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -53,10 +54,20 @@ type syncResult struct {
 }
 
 func (h *Handler) syncDraws(w http.ResponseWriter, r *http.Request) {
-	draws, issues, err := h.fetchArchive(h.archiveURL)
+	res, err := h.runSyncAndRecord(r.Context())
 	if err != nil {
 		errorJSON(w, http.StatusBadGateway, err.Error())
 		return
+	}
+	writeJSON(w, http.StatusOK, res)
+}
+
+// runSync — тело синхронизации без HTTP: fetch → parse → вставки.
+// Вызывается хендлером и (через runSyncAndRecord) планировщиком.
+func (h *Handler) runSync(ctx context.Context) (syncResult, error) {
+	draws, issues, err := h.fetchArchive(ctx, h.archiveURL)
+	if err != nil {
+		return syncResult{}, err
 	}
 	res := syncResult{Total: len(draws) + len(issues), Issues: []syncIssue{}}
 	for _, is := range issues {
@@ -74,12 +85,17 @@ func (h *Handler) syncDraws(w http.ResponseWriter, r *http.Request) {
 			res.Issues = append(res.Issues, syncIssue{DrawNo: d.No, Reason: "ошибка сохранения"})
 		}
 	}
-	writeJSON(w, http.StatusOK, res)
+	return res, nil
 }
 
-// fetchArchive скачивает страницу архива и разбирает её.
-func (h *Handler) fetchArchive(url string) ([]timelottery.Draw, []timelottery.Issue, error) {
-	resp, err := h.archiveClient.Get(url)
+// fetchArchive скачивает страницу архива и разбирает её. Запрос отменяется
+// вместе с ctx (HTTP-хендлер — контекст запроса, планировщик — контекст сервера).
+func (h *Handler) fetchArchive(ctx context.Context, url string) ([]timelottery.Draw, []timelottery.Issue, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	resp, err := h.archiveClient.Do(req)
 	if err != nil {
 		slog.Warn("sync: загрузка архива", "url", url, "err", err)
 		return nil, nil, errors.New("не удалось загрузить страницу архива")
