@@ -18,6 +18,12 @@ import (
 // maxBodyBytes — лимит тела запроса: на порядки больше реальных запросов.
 const maxBodyBytes = 64 << 10
 
+// WriteTimeout — таймаут записи HTTP-сервера: cmd/server ставит его на
+// http.Server. Вмещает запрос к LLM (120 с в internal/llm), иначе ответ
+// AI-генерации умрёт при записи. Таймаут скачивания архива обязан быть
+// меньше него (см. newHandler).
+const WriteTimeout = 130 * time.Second
+
 // defaultArchiveURL — страница архива результатов на timelottery.ru.
 const defaultArchiveURL = "https://timelottery.ru/arhiv/rezultaty-vseh-rozygryshej-fortunata/"
 
@@ -43,9 +49,9 @@ type Handler struct {
 }
 
 // newHandler собирает Handler; маршруты регистрирует register.
-// Таймаут клиента должен оставаться меньше WriteTimeout HTTP-сервера
-// (130 с в cmd/server/main.go), иначе вставки закоммитятся, а ответ
-// до клиента не дойдёт.
+// Таймаут клиента должен оставаться меньше WriteTimeout, иначе вставки
+// закоммитятся, а ответ до клиента не дойдёт (инвариант проверяет
+// TestSyncArchiveClientTimeoutBelowWriteTimeout).
 func newHandler(st *store.Store, password, secret string, cookieSecure bool, archiveURL string, llmClient *llm.Client, syncCfg SyncConfig) *Handler {
 	if archiveURL == "" {
 		archiveURL = defaultArchiveURL

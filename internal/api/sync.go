@@ -17,10 +17,11 @@ import (
 // maxArchiveBytes — лимит размера страницы архива (реальная ~0,2 МБ).
 const maxArchiveBytes = 5 << 20
 
-// errArchiveTooBig — страница архива превысила лимит; timelottery.Parse
-// оборачивает ошибку ридера через %w («разбор html: …»), поэтому сентинелл
-// распознаётся через errors.Is.
-var errArchiveTooBig = fmt.Errorf("страница архива больше %d МБ", maxArchiveBytes>>20)
+// errArchiveTooBig — страница архива достигла лимита или превысила его
+// (ровно 5 МБ тоже отклоняется: следующий Read после исчерпания лимита
+// даёт ошибку); timelottery.Parse оборачивает ошибку ридера через %w
+// («разбор html: …»), поэтому сентинелл распознаётся через errors.Is.
+var errArchiveTooBig = fmt.Errorf("страница архива не меньше %d МБ", maxArchiveBytes>>20)
 
 // limitedReader читает не более n байт, дальше — errArchiveTooBig:
 // io.LimitReader тихо обрезал бы страницу, давая частичный парс с 200.

@@ -2,7 +2,6 @@
 package timelottery
 
 import (
-	"fmt"
 	"math"
 	"os"
 	"reflect"
@@ -55,15 +54,16 @@ func TestParseIssues(t *testing.T) {
 		t.Fatalf("issues = %+v, хотели 4", issues)
 	}
 	for _, tc := range []struct {
+		name  string
 		no    int64
 		fragm string
 	}{
-		{62, "36 вне диапазона"},
-		{61, "повторяется"},
-		{60, "бонусное число 55 вне диапазона"},
-		{59, "0 вне диапазона"},
+		{"№62: 36 вне диапазона", 62, "36 вне диапазона"},
+		{"№61: число повторяется", 61, "повторяется"},
+		{"№60: бонус 55 вне диапазона", 60, "бонусное число 55 вне диапазона"},
+		{"№59: 0 вне диапазона", 59, "0 вне диапазона"},
 	} {
-		t.Run(fmt.Sprintf("№%d", tc.no), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			found := false
 			for _, is := range issues {
 				if is.DrawNo == tc.no && strings.Contains(is.Reason, tc.fragm) {
@@ -123,6 +123,11 @@ func TestExtractNumbers(t *testing.T) {
 		// поведение; в реальной строке такой артефакт отсекается validate.
 		{"переполнение Atoi", "99999999999999999999", []int{math.MaxInt}},
 		{"нет цифр", "архив", nil},
+		// Пустая ячейка — реальный HTML-кейс: nil, а не пустой срез.
+		{"пустая ячейка", "", nil},
+		// Знак молча теряется (минус не цифра) — зафиксированный quirk:
+		// в реальных строках архива отрицательных чисел нет.
+		{"минус перед числом", "−5", []int{5}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := extractNumbers(tc.in); !reflect.DeepEqual(got, tc.want) {

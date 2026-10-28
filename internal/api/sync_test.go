@@ -269,9 +269,8 @@ func TestSyncArchiveTimeout(t *testing.T) {
 // оставаться меньше WriteTimeout HTTP-сервера, иначе вставки в базу
 // закоммитятся, а ответ до клиента не дойдёт.
 func TestSyncArchiveClientTimeoutBelowWriteTimeout(t *testing.T) {
-	const writeTimeout = 130 * time.Second // WriteTimeout в cmd/server/main.go
-	if got := newHandler(newTestStore(t), "p", "s", false, "", nil, SyncConfig{}).archiveClient.Timeout; got >= writeTimeout {
-		t.Fatalf("таймаут archiveClient = %v, должен быть меньше WriteTimeout %v", got, writeTimeout)
+	if got := newHandler(newTestStore(t), "p", "s", false, "", nil, SyncConfig{}).archiveClient.Timeout; got >= WriteTimeout {
+		t.Fatalf("таймаут archiveClient = %v, должен быть меньше WriteTimeout %v", got, WriteTimeout)
 	}
 }
 
