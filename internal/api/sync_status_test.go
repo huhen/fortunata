@@ -2,6 +2,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -109,5 +110,29 @@ func TestSyncStatusRecordsError(t *testing.T) {
 	body := decodeStatus(t, get(t, c, ts.URL+"/api/sync-status"))
 	if body.Last == nil || body.Last.Err == "" || body.Last.Added != 0 {
 		t.Fatalf("last = %+v, ожидали ошибку", body.Last)
+	}
+}
+
+// Склейка планировщика со статусом: fn планировщика — тот же
+// runSyncAndRecord, его вызов напрямую (как делает планировщик) должен
+// отразиться в GET /api/sync-status.
+func TestSyncStatusRecordsViaSchedulerFn(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(readArchiveFixture(t)))
+	}))
+	t.Cleanup(upstream.Close)
+	h := newHandler(newTestStore(t), "pass123", "test-secret", false, upstream.URL, nil,
+		SyncConfig{Hour: 15, Enabled: true})
+	if _, err := h.runSyncAndRecord(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	mux := http.NewServeMux()
+	h.register(mux)
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+	c := loginClient(t, ts)
+	body := decodeStatus(t, get(t, c, ts.URL+"/api/sync-status"))
+	if body.Last == nil || body.Last.Added != 2 || body.Last.Err != "" {
+		t.Fatalf("last = %+v, ожидали added=2", body.Last)
 	}
 }

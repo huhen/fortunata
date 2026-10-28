@@ -93,7 +93,7 @@ func (h *Handler) register(mux *http.ServeMux) {
 	mux.Handle("PUT /api/draws/{no}", h.session(requireJSON(h.updateDraw)))
 	mux.Handle("DELETE /api/draws/{no}", h.session(h.deleteDraw))
 	mux.Handle("POST /api/sync", h.session(requireJSON(h.syncDraws)))
-	mux.HandleFunc("GET /api/sync-status", h.session(h.syncStatusHandler))
+	mux.HandleFunc("GET /api/sync-status", h.session(h.syncStatusGet))
 	mux.Handle("POST /api/generate", requireJSON(h.generate))
 	mux.Handle("POST /api/generate/ai", requireJSON(h.generateAI))
 }

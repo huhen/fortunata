@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -175,8 +176,15 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	// wg ждёт горутину планировщика до выхода из main: синка, идущая в момент
+	// сигнала, должна договорить вставку, а не оборваться на середине.
+	var wg sync.WaitGroup
 	if sched != nil {
-		go sched.Run(ctx)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sched.Run(ctx)
+		}()
 		logger.Info("автосинхронизация включена", "at", fmt.Sprintf("%02d:%02d UTC", cfg.SyncAtHour, cfg.SyncAtMin))
 	}
 	go func() {
@@ -193,6 +201,7 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("graceful shutdown", "err", err)
 	}
+	wg.Wait()
 }
 
 // securityHeaders добавляет базовые защитные заголовки ко всем ответам.

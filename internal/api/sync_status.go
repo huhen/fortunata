@@ -37,15 +37,18 @@ func (h *Handler) runSyncAndRecord(ctx context.Context) (syncResult, error) {
 }
 
 type syncStatusResponse struct {
-	Enabled  bool        `json:"enabled"`
-	Schedule string      `json:"schedule"`
-	NextRun  *time.Time  `json:"nextRun"`
-	Last     *syncStatus `json:"last"`
+	Enabled  bool   `json:"enabled"`
+	Schedule string `json:"schedule"`
+	// NextRun — ближайшие hour:min UTC. После ошибки планировщик повторяет
+	// каждый час, и поле по-прежнему показывает расписание, а не фактическую
+	// ближайшую попытку — осознанное упрощение.
+	NextRun *time.Time  `json:"nextRun"`
+	Last    *syncStatus `json:"last"`
 }
 
-// syncStatusHandler — GET /api/sync-status (под сессией, как остальные
+// syncStatusGet — GET /api/sync-status (под сессией, как остальные
 // админские маршруты).
-func (h *Handler) syncStatusHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) syncStatusGet(w http.ResponseWriter, r *http.Request) {
 	resp := syncStatusResponse{Enabled: h.syncEnabled, Schedule: h.syncAt}
 	if h.sched != nil {
 		nr := h.sched.NextRun()
