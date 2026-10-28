@@ -176,8 +176,9 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	// wg ждёт горутину планировщика до выхода из main: синка, идущая в момент
-	// сигнала, должна договорить вставку, а не оборваться на середине.
+	// wg ждёт горутину планировщика до выхода из main: fetch прервётся сигналом
+	// сразу (его ctx отменяется), но начатые вставки (ctx не берут) должны
+	// договорить, а не оборваться на середине — до st.Close().
 	var wg sync.WaitGroup
 	if sched != nil {
 		wg.Add(1)
