@@ -168,9 +168,8 @@ func main() {
 		Handler:           securityHeaders(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		// WriteTimeout должен вмещать запрос к LLM (120 с в internal/llm),
-		// иначе ответ AI-генерации умрёт при записи.
-		WriteTimeout: 130 * time.Second,
+		// Общий инвариант с таймаутом скачивания архива — см. api.WriteTimeout.
+		WriteTimeout: api.WriteTimeout,
 		IdleTimeout:  60 * time.Second,
 	}
 

@@ -22,11 +22,7 @@ func syncOn() SyncConfig { return SyncConfig{Hour: 15, Min: 0, Enabled: true} }
 // newTestServer поднимает api на httptest с паролем "pass123".
 func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
-	st, err := store.Open(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { st.Close() })
+	st := newTestStore(t)
 	mux, _ := New(st, "pass123", "test-secret", false, "", nil, syncOn())
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
@@ -447,11 +443,7 @@ func TestGenerateUsesHistory(t *testing.T) {
 	// 50 розыгрышей {1..7}+8: числа 1–7 получают вес 51, остальные — 1.
 	// ГСЧ crypto/rand, поэтому проверка статистическая: в 10 билетах
 	// самое частое число почти наверняка встретится.
-	st, err := store.Open(":memory:")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer st.Close()
+	st := newTestStore(t)
 	for i := 1; i <= 50; i++ {
 		if err := st.Create(drawStruct(int64(i))); err != nil {
 			t.Fatal(err)
