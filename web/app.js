@@ -1,23 +1,41 @@
 import { api, ball } from './common.js';
 
 // Вкладки
-const tabs = document.querySelectorAll('.tab');
+const tabs = [...document.querySelectorAll('.tab')];
+
+// activateTab подсвечивает вкладку, показывает её панель и подгружает
+// данные панели; roving tabindex — под Tab попадает только активная вкладка,
+// между остальными ходят стрелками (паттерн ARIA «tabs»).
+function activateTab(tab) {
+  tabs.forEach((t) => {
+    const active = t === tab;
+    t.classList.toggle('active', active);
+    t.setAttribute('aria-selected', String(active));
+    t.tabIndex = active ? 0 : -1;
+  });
+  document.querySelectorAll('.panel').forEach((p) => {
+    p.classList.toggle('active', p.id === `tab-${tab.dataset.tab}`);
+  });
+  if (tab.dataset.tab === 'archive') {
+    loadDraws();
+  }
+  if (tab.dataset.tab === 'stats') {
+    loadStats();
+  }
+}
+
 tabs.forEach((tab) => {
-  tab.addEventListener('click', () => {
-    tabs.forEach((t) => {
-      const active = t === tab;
-      t.classList.toggle('active', active);
-      t.setAttribute('aria-selected', String(active));
-    });
-    document.querySelectorAll('.panel').forEach((p) => {
-      p.classList.toggle('active', p.id === `tab-${tab.dataset.tab}`);
-    });
-    if (tab.dataset.tab === 'archive') {
-      loadDraws();
+  tab.addEventListener('click', () => activateTab(tab));
+  // Стрелки циклически переключают вкладки (активация следует за фокусом).
+  tab.addEventListener('keydown', (e) => {
+    const delta = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (!delta) {
+      return;
     }
-    if (tab.dataset.tab === 'stats') {
-      loadStats();
-    }
+    e.preventDefault();
+    const next = tabs[(tabs.indexOf(tab) + delta + tabs.length) % tabs.length];
+    next.focus();
+    activateTab(next);
   });
 });
 
@@ -85,6 +103,9 @@ try {
   // /api/version недоступен — кнопка остаётся скрытой
 }
 
+// EMPTY_ARCHIVE — заглушка пустой базы, общая для Архива и Статистики.
+const EMPTY_ARCHIVE = 'Розыгрышей пока нет — добавьте их через редактирование.';
+
 // Архив
 async function loadDraws() {
   const box = document.getElementById('draws-list');
@@ -92,7 +113,7 @@ async function loadDraws() {
     const data = await api('/api/draws');
     box.replaceChildren();
     if (data.draws.length === 0) {
-      box.textContent = 'Розыгрышей пока нет — добавьте их через редактирование.';
+      box.textContent = EMPTY_ARCHIVE;
       return;
     }
     for (const d of data.draws) {
@@ -120,7 +141,7 @@ async function loadStats() {
     const data = await api('/api/stats');
     box.replaceChildren();
     if (data.main.length === 0) {
-      box.textContent = 'Розыгрышей пока нет — добавьте их через редактирование.';
+      box.textContent = EMPTY_ARCHIVE;
       return;
     }
     box.append(statsCard('Основные шары', data.main, ''));
