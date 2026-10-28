@@ -49,6 +49,7 @@ async function login() {
     document.getElementById('password').value = '';
     show(true);
     refreshList();
+    refreshAutoSync();
   } catch (e) {
     loginError.textContent = e.message;
     loginError.hidden = false;
