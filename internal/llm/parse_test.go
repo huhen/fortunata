@@ -61,3 +61,36 @@ func TestExtractTicketsNoJSON(t *testing.T) {
 		t.Fatalf("незакрытый think: %+v, хотим пусто", got)
 	}
 }
+
+// Посторонняя фигурная скобка до настоящего JSON: декодирование пробует
+// следующие вхождения {, а не сдаётся на первом.
+func TestExtractTicketsStrayBraceBeforeJSON(t *testing.T) {
+	content := `{curly} Вот ваш набор: {"combinations":[{"numbers":[1,2,3,4,5,6,7],"bonus":8}]}`
+	got := ExtractTickets(content)
+	if len(got) != 1 {
+		t.Fatalf("билеты = %+v, хотим 1", got)
+	}
+}
+
+// Обрезанный хвост (finish_reason=length): уже полные комбинации сохраняются,
+// теряется только недособранный последний элемент.
+func TestExtractTicketsTruncatedJSON(t *testing.T) {
+	content := `{"combinations":[` +
+		`{"numbers":[1,2,3,4,5,6,7],"bonus":8},` +
+		`{"numbers":[3,7,12,19,25,31,34],"bonus":8},` +
+		`{"numbers":[9,10,11,12,13,14,15],"bonus":` // обрыв на середине элемента
+	got := ExtractTickets(content)
+	if len(got) != 2 {
+		t.Fatalf("билеты = %+v, хотим 2 завершённых", got)
+	}
+	if !reflect.DeepEqual(got[1].Numbers, []int{3, 7, 12, 19, 25, 31, 34}) {
+		t.Fatalf("билет 1 = %+v", got[1])
+	}
+}
+
+// Обрыв сразу после открывающей скобки массива — ноль билетов без паники.
+func TestExtractTicketsTruncatedEmpty(t *testing.T) {
+	if got := ExtractTickets(`{"combinations":[`); len(got) != 0 {
+		t.Fatalf("билеты = %+v, хотим пусто", got)
+	}
+}

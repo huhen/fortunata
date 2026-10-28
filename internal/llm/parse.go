@@ -18,35 +18,83 @@ var (
 	unclosedThinkRe = regexp.MustCompile(`(?s)<think>.*`)
 )
 
-// combinationsPayload — ожидаемая структура ответа модели.
-type combinationsPayload struct {
-	Combinations []struct {
-		Numbers []int `json:"numbers"`
-		Bonus   int   `json:"bonus"`
-	} `json:"combinations"`
+// combination — одна строка «комбинация» из ответа модели.
+type combination struct {
+	Numbers []int `json:"numbers"`
+	Bonus   int   `json:"bonus"`
 }
+
+// maxJSONCandidates — сколько вхождений { пробуем: посторонняя скобка до
+// настоящего JSON ({curly} в тексте ответа) не должна стоить полного
+// добора. Ответ домашней LLM короткий, десяток кандидатов — потолок с запасом.
+const maxJSONCandidates = 10
 
 // ExtractTickets вытаскивает из ответа модели валидные билеты. Ответ может
 // содержать <think>-рассуждения, ```-заборы и текст вокруг JSON. Невалидные
 // комбинации отбрасываются; у валидных числа сортируются по возрастанию.
 func ExtractTickets(content string) []generate.Ticket {
 	cleaned := unclosedThinkRe.ReplaceAllString(thinkRe.ReplaceAllString(content, ""), "")
-	start := strings.Index(cleaned, "{")
-	if start < 0 {
+	for attempt, pos := 0, 0; attempt < maxJSONCandidates; attempt++ {
+		i := strings.Index(cleaned[pos:], "{")
+		if i < 0 {
+			break
+		}
+		pos += i
+		if tickets := decodeTickets(cleaned[pos:]); len(tickets) > 0 {
+			return tickets
+		}
+		pos++
+	}
+	return nil
+}
+
+// decodeTickets читает поле combinations JSON-объекта, начинающегося в s.
+// Объект разбирается потоково (по полям и элементам массива), а не целиком:
+// при обрезанном хвосте (finish_reason=length) сохраняются уже завершённые
+// комбинации. Мусор после закрывающей } игнорируется; при ошибке разбора
+// в любом месте возвращаются собранные до этого билеты (возможно, nil).
+func decodeTickets(s string) []generate.Ticket {
+	dec := json.NewDecoder(strings.NewReader(s))
+	var tickets []generate.Ticket
+	if d, ok := firstDelim(dec); !ok || d != '{' {
 		return nil
 	}
-	var payload combinationsPayload
-	// Decode читает первый JSON-объект и игнорирует мусор после него.
-	if err := json.NewDecoder(strings.NewReader(cleaned[start:])).Decode(&payload); err != nil {
-		return nil
-	}
-	tickets := make([]generate.Ticket, 0, len(payload.Combinations))
-	for _, c := range payload.Combinations {
-		if t, ok := validTicket(c.Numbers, c.Bonus); ok {
-			tickets = append(tickets, t)
+	for dec.More() {
+		keyTok, err := dec.Token()
+		if err != nil {
+			break
+		}
+		if key, _ := keyTok.(string); key != "combinations" {
+			var skip json.RawMessage // пропустить значение другого поля
+			if err := dec.Decode(&skip); err != nil {
+				break
+			}
+			continue
+		}
+		if d, ok := firstDelim(dec); !ok || d != '[' {
+			break // combinations не массив
+		}
+		for dec.More() {
+			var c combination
+			if err := dec.Decode(&c); err != nil {
+				return tickets // обрезанный элемент: держим завершённые
+			}
+			if t, ok := validTicket(c.Numbers, c.Bonus); ok {
+				tickets = append(tickets, t)
+			}
 		}
 	}
 	return tickets
+}
+
+// firstDelim читает следующий токен и сообщает, структурный разделитель.
+func firstDelim(dec *json.Decoder) (json.Delim, bool) {
+	tok, err := dec.Token()
+	if err != nil {
+		return 0, false
+	}
+	d, ok := tok.(json.Delim)
+	return d, ok
 }
 
 // validTicket проверяет комбинацию: ровно 7 уникальных чисел 1–35, бонус 1–54.
