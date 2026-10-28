@@ -1,4 +1,4 @@
-import { api, ball } from './common.js';
+import { api, ball, fetchVersion } from './common.js';
 
 // Вкладки
 const tabs = [...document.querySelectorAll('.tab')];
@@ -93,14 +93,11 @@ btnAI.addEventListener('click', async () => {
 });
 
 // AI-кнопка видна, только если сервер настроил LLM. Запрос после
-// навешивания обработчиков: top-level await не задержит их.
-try {
-  const v = await api('/api/version');
-  if (v && v.ai) {
-    btnAI.hidden = false;
-  }
-} catch {
-  // /api/version недоступен — кнопка остаётся скрытой
+// навешивания обработчиков: top-level await не задержит их; промис версии
+// шарится с footer.js (fetchVersion кэширует).
+const v = await fetchVersion();
+if (v && v.ai) {
+  btnAI.hidden = false;
 }
 
 // EMPTY_ARCHIVE — заглушка пустой базы, общая для Архива и Статистики.

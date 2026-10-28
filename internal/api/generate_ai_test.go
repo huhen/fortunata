@@ -53,6 +53,13 @@ func TestGenerateAIBusy(t *testing.T) {
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, хотим 503", resp.StatusCode)
 	}
+	// Невалидный count при занятом слоте — 400, а не 503: валидация идёт
+	// до захвата слота.
+	respBad := post(t, clientWithJar(), ts.URL+"/api/generate/ai", map[string]any{"count": 0})
+	respBad.Body.Close()
+	if respBad.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, хотим 400 (валидация до слота)", respBad.StatusCode)
+	}
 }
 
 func TestGenerateAIHappyPath(t *testing.T) {
