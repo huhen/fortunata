@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,6 +34,10 @@ type Config struct {
 	LLMBaseURL string // LLM_BASE_URL; задаются с LLMModel вместе, пусто = AI выключена
 	LLMModel   string // LLM_MODEL
 	LLMAPIKey  string // LLM_API_KEY, опционален
+
+	SyncAtHour  int  // SYNC_AT, час запуска синки в UTC (по умолчанию 15)
+	SyncAtMin   int  // SYNC_AT, минута (по умолчанию 0)
+	SyncEnabled bool // SYNC_ENABLED, по умолчанию true
 }
 
 func loadConfig(getenv func(string) string) (Config, error) {
@@ -68,6 +73,24 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("COOKIE_SECURE: %w", err)
 	}
 	cfg.CookieSecure = b
+	syncAt := getenv("SYNC_AT")
+	if syncAt == "" {
+		syncAt = "15:00"
+	}
+	hour, min, err := parseSyncAt(syncAt)
+	if err != nil {
+		return Config{}, fmt.Errorf("SYNC_AT: %w", err)
+	}
+	cfg.SyncAtHour, cfg.SyncAtMin = hour, min
+	enabled := getenv("SYNC_ENABLED")
+	if enabled == "" {
+		enabled = "true"
+	}
+	b, err = strconv.ParseBool(enabled)
+	if err != nil {
+		return Config{}, fmt.Errorf("SYNC_ENABLED: %w", err)
+	}
+	cfg.SyncEnabled = b
 	cfg.LLMBaseURL = getenv("LLM_BASE_URL")
 	cfg.LLMModel = getenv("LLM_MODEL")
 	cfg.LLMAPIKey = getenv("LLM_API_KEY")
@@ -75,6 +98,22 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		return Config{}, errors.New("LLM_BASE_URL и LLM_MODEL задаются вместе")
 	}
 	return cfg, nil
+}
+
+// parseSyncAt разбирает SYNC_AT формата HH:MM (время в UTC).
+// Формат строгий: ровно две цифры на поле — «7:30» отвергается.
+func parseSyncAt(s string) (hour, min int, err error) {
+	hh, mm, ok := strings.Cut(s, ":")
+	if !ok || len(hh) != 2 || len(mm) != 2 {
+		return 0, 0, errors.New(`ожидается время в формате HH:MM, например "15:00"`)
+	}
+	if hour, err = strconv.Atoi(hh); err != nil || hour < 0 || hour > 23 {
+		return 0, 0, fmt.Errorf("часы %q вне 00–23", hh)
+	}
+	if min, err = strconv.Atoi(mm); err != nil || min < 0 || min > 59 {
+		return 0, 0, fmt.Errorf("минуты %q вне 00–59", mm)
+	}
+	return hour, min, nil
 }
 
 func main() {
