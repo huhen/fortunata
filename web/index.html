@@ -11,13 +11,13 @@
   <header class="topbar"><h1>Fortunata · предсказатель</h1></header>
 
   <nav class="tabs" role="tablist" aria-label="Разделы">
-    <button class="tab active" data-tab="generate" role="tab" aria-selected="true">Генератор</button>
-    <button class="tab" data-tab="archive" role="tab" aria-selected="false">Архив</button>
-    <button class="tab" data-tab="stats" role="tab" aria-selected="false">Статистика</button>
+    <button id="tab-btn-generate" class="tab active" data-tab="generate" role="tab" aria-selected="true" aria-controls="tab-generate">Генератор</button>
+    <button id="tab-btn-archive" class="tab" data-tab="archive" role="tab" aria-selected="false" aria-controls="tab-archive" tabindex="-1">Архив</button>
+    <button id="tab-btn-stats" class="tab" data-tab="stats" role="tab" aria-selected="false" aria-controls="tab-stats" tabindex="-1">Статистика</button>
   </nav>
 
   <main>
-    <section id="tab-generate" class="panel active" role="tabpanel">
+    <section id="tab-generate" class="panel active" role="tabpanel" aria-labelledby="tab-btn-generate">
       <div class="card">
         <label for="count">Сколько билетов сгенерировать</label>
         <input id="count" type="number" inputmode="numeric" min="1" max="100" value="10">
@@ -30,12 +30,12 @@
       <div id="tickets"></div>
     </section>
 
-    <section id="tab-archive" class="panel" role="tabpanel">
+    <section id="tab-archive" class="panel" role="tabpanel" aria-labelledby="tab-btn-archive">
       <a class="btn-secondary" href="/admin">Редактировать розыгрыши</a>
       <div id="draws-list"></div>
     </section>
 
-    <section id="tab-stats" class="panel" role="tabpanel">
+    <section id="tab-stats" class="panel" role="tabpanel" aria-labelledby="tab-btn-stats">
       <div id="stats-list"></div>
     </section>
   </main>
