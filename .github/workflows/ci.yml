@@ -46,5 +46,26 @@ jobs:
           context: .
           platforms: linux/amd64
           push: false
+          load: true
+          tags: fortunata:ci
+          build-args: |
+            VERSION=ci-check
           cache-from: type=gha
           cache-to: type=gha,mode=max,ignore-error=true
+
+      # Путь -X в Dockerfile проверяется прогоном образа: без build-args
+      # джоба всегда собирает «dev» и регрессия проявилась бы только на релизе.
+      - name: Версия сборки вшита в образ
+        run: |
+          docker run -d --name fortuna-ci -e ADMIN_PASSWORD=ci -p 8080:8080 fortunata:ci
+          trap 'docker rm -f fortuna-ci >/dev/null' EXIT
+          for i in {1..30}; do
+            version=$(curl -sf localhost:8080/api/version || true)
+            if [[ "$version" == *'"version":"ci-check"'* ]]; then
+              echo "OK: $version"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "версия в образе: ${version:-нет ответа}"
+          exit 1
