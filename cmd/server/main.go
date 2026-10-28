@@ -101,16 +101,22 @@ func loadConfig(getenv func(string) string) (Config, error) {
 }
 
 // parseSyncAt разбирает SYNC_AT формата HH:MM (время в UTC).
-// Формат строгий: ровно две цифры на поле — «7:30» отвергается.
+// Формат строгий: ровно два символа на поле — «7:30» отвергается.
 func parseSyncAt(s string) (hour, min int, err error) {
 	hh, mm, ok := strings.Cut(s, ":")
 	if !ok || len(hh) != 2 || len(mm) != 2 {
 		return 0, 0, errors.New(`ожидается время в формате HH:MM, например "15:00"`)
 	}
-	if hour, err = strconv.Atoi(hh); err != nil || hour < 0 || hour > 23 {
+	if hour, err = strconv.Atoi(hh); err != nil {
+		return 0, 0, fmt.Errorf("часы %q не число", hh)
+	}
+	if hour < 0 || hour > 23 {
 		return 0, 0, fmt.Errorf("часы %q вне 00–23", hh)
 	}
-	if min, err = strconv.Atoi(mm); err != nil || min < 0 || min > 59 {
+	if min, err = strconv.Atoi(mm); err != nil {
+		return 0, 0, fmt.Errorf("минуты %q не число", mm)
+	}
+	if min < 0 || min > 59 {
 		return 0, 0, fmt.Errorf("минуты %q вне 00–59", mm)
 	}
 	return hour, min, nil
