@@ -13,6 +13,7 @@ const btnCancel = document.getElementById('btn-cancel');
 const list = document.getElementById('admin-draws');
 const btnSync = document.getElementById('btn-sync');
 const syncStatus = document.getElementById('sync-status');
+const autoSync = document.getElementById('auto-sync');
 
 let editNo = null; // null — добавление, число — редактирование существующего
 
@@ -24,6 +25,7 @@ async function init() {
     show(me.authenticated);
     if (me.authenticated) {
       refreshList();
+      refreshAutoSync();
     }
   } catch {
     show(false);
@@ -97,6 +99,7 @@ async function sync() {
     btnSync.disabled = false;
     btnSync.textContent = 'Синхронизировать';
     refreshList();
+    refreshAutoSync();
   }
 }
 
@@ -220,4 +223,41 @@ function drawRow(d) {
   actions.append(edit, del);
   row.append(actions);
   return row;
+}
+
+// Статус автосинхронизации: расписание, следующий запуск, последний итог.
+async function refreshAutoSync() {
+  try {
+    const s = await api('/api/sync-status');
+    autoSync.hidden = false;
+    autoSync.textContent = autoSyncText(s);
+  } catch {
+    autoSync.hidden = true; // статус не критичен — скрываем, панель работает
+  }
+}
+
+function autoSyncText(s) {
+  if (!s.enabled) {
+    return 'Автосинхронизация выключена';
+  }
+  const parts = [`Автосинхронизация ежедневно в ${s.schedule}`];
+  if (s.nextRun) {
+    parts.push(`следующая — ${fmtUTC(s.nextRun)}`);
+  }
+  if (s.last) {
+    if (s.last.error) {
+      parts.push(`последняя: ${fmtUTC(s.last.at)}, ошибка: ${s.last.error}`);
+    } else {
+      parts.push(`последняя: ${fmtUTC(s.last.at)}, добавлено ${s.last.added}`);
+    }
+  }
+  return parts.join('. ') + '.';
+}
+
+// fmtUTC — время в UTC: расписание задаётся в UTC, показываем то же время,
+// что и на сервере, без перевода в локальный часовой пояс.
+function fmtUTC(iso) {
+  return new Date(iso).toLocaleString('ru-RU', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+  });
 }
