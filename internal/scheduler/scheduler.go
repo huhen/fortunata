@@ -20,6 +20,8 @@ type Scheduler struct {
 }
 
 // New создаёт планировщик с реальными часами и часовым интервалом повтора.
+// hour ∈ 0–23, min ∈ 0–59; вне диапазона time.Date нормализует значения
+// молча — валидация ответственность вызывающего.
 func New(hour, min int, fn func(context.Context) error) *Scheduler {
 	return &Scheduler{
 		hour:       hour,
@@ -43,7 +45,9 @@ func (s *Scheduler) Run(ctx context.Context) {
 			return // ctx отменён — graceful shutdown
 		}
 		if err := s.fn(ctx); err != nil {
-			slog.Warn("scheduler: запуск не удался, повтор позже", "err", err, "retryIn", s.retryEvery)
+			if ctx.Err() == nil {
+				slog.Warn("scheduler: запуск не удался, повтор позже", "err", err, "retryIn", s.retryEvery)
+			}
 			delay = s.retryEvery
 		} else {
 			delay = s.NextRun().Sub(s.now())
@@ -52,8 +56,7 @@ func (s *Scheduler) Run(ctx context.Context) {
 }
 
 // initialDelay — сколько ждать первого запуска. Если сегодняшние hour:min
-// уже прошли — 0: догон после рестарта (повтор безвреден, синка
-// идемпотентна — дубли пропускаются).
+// уже прошли — 0: догон после рестарта (повтор безвреден для идемпотентных fn).
 func (s *Scheduler) initialDelay() time.Duration {
 	now := s.now().UTC()
 	run := time.Date(now.Year(), now.Month(), now.Day(), s.hour, s.min, 0, 0, time.UTC)

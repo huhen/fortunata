@@ -180,3 +180,34 @@ func TestRunRetryOnError(t *testing.T) {
 		t.Fatalf("после успеха: задержка = %v, хотим 23ч", d)
 	}
 }
+
+// waitDur — прямое покрытие реальной реализации ожидания (в Run-тестах
+// wait подменён): короткий сон, d = 0 с отменённым и живым ctx, отмена
+// ctx во время длительного ожидания.
+func TestWaitDur(t *testing.T) {
+	if err := waitDur(context.Background(), 10*time.Millisecond); err != nil {
+		t.Fatalf("краткий сон: err = %v, хотим nil", err)
+	}
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := waitDur(cancelled, 0); !errors.Is(err, context.Canceled) {
+		t.Fatalf("отменённый ctx, d=0: err = %v, хотим ctx.Err()", err)
+	}
+	if err := waitDur(context.Background(), 0); err != nil {
+		t.Fatalf("живой ctx, d=0: err = %v, хотим nil", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- waitDur(ctx, time.Hour) }()
+	cancel()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("отмена во время ожидания: err = %v, хотим ctx.Err()", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("waitDur не завершился по отмене ctx")
+	}
+}
