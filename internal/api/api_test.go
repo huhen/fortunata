@@ -15,6 +15,10 @@ import (
 	"fortunata/internal/store"
 )
 
+// syncOn — включённый SyncConfig для тестов: планировщик создаётся,
+// но не запускается (Run дёргает только main).
+func syncOn() SyncConfig { return SyncConfig{Hour: 15, Min: 0, Enabled: true} }
+
 // newTestServer поднимает api на httptest с паролем "pass123".
 func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
@@ -23,7 +27,8 @@ func newTestServer(t *testing.T) *httptest.Server {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { st.Close() })
-	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, "", nil))
+	mux, _ := New(st, "pass123", "test-secret", false, "", nil, syncOn())
+	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	return ts
 }
@@ -452,7 +457,8 @@ func TestGenerateUsesHistory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	ts := httptest.NewServer(New(st, "pass123", "test-secret", false, "", nil))
+	mux, _ := New(st, "pass123", "test-secret", false, "", nil, syncOn())
+	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 	resp := post(t, clientWithJar(), ts.URL+"/api/generate", map[string]any{"count": 10})
 	defer resp.Body.Close()

@@ -54,7 +54,7 @@ type syncResult struct {
 }
 
 func (h *Handler) syncDraws(w http.ResponseWriter, r *http.Request) {
-	res, err := h.runSync(r.Context())
+	res, err := h.runSyncAndRecord(r.Context())
 	if err != nil {
 		errorJSON(w, http.StatusBadGateway, err.Error())
 		return

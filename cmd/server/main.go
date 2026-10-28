@@ -147,7 +147,8 @@ func main() {
 		logger.Info("AI-генерация включена", "url", cfg.LLMBaseURL, "model", cfg.LLMModel)
 	}
 
-	mux := api.New(st, cfg.Password, cfg.Secret, cfg.CookieSecure, "", llmClient)
+	mux, sched := api.New(st, cfg.Password, cfg.Secret, cfg.CookieSecure, "", llmClient,
+		api.SyncConfig{Hour: cfg.SyncAtHour, Min: cfg.SyncAtMin, Enabled: cfg.SyncEnabled})
 
 	// Статика: / — index.html, /admin — админка, остальное — файлы из web/.
 	mux.Handle("GET /", http.FileServerFS(web.Files))
@@ -174,6 +175,10 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if sched != nil {
+		go sched.Run(ctx)
+		logger.Info("автосинхронизация включена", "at", fmt.Sprintf("%02d:%02d UTC", cfg.SyncAtHour, cfg.SyncAtMin))
+	}
 	go func() {
 		logger.Info("слушаю", "addr", cfg.Addr, "db", cfg.DBPath)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
